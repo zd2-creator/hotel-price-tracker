@@ -2,6 +2,9 @@
 
 אפליקציית מובייל (GitHub Pages) + Backend ב-Google Apps Script + נתונים בגיליון גוגל + סקיל לרוברט (OpenClaw בטלגרם).
 
+ריפו: `zd2-creator/hotel-price-tracker` (נדרס ב-20.9.2026 מפרויקט מעקב המחירים הישן). אתר: https://zd2-creator.github.io/hotel-price-tracker/ (דורש ריפו ציבורי + Pages מופעל על main).
+פרויקט Apps Script מקושר לגיליון: `1HtbzbQ5pgeu4r8VKWDhsoBnw8dGbzr6LlEeLrhtXDOaiKTtEehJEGGJD`.
+
 ```
 index.html            ← האפליקציה (סטטית, GitHub Pages)
 apps-script/Code.gs   ← ה-API שמדביקים בגיליון
