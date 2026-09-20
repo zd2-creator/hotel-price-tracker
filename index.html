@@ -196,6 +196,7 @@ form textarea{min-height:64px;resize:vertical}
 /* ====== הגדרות ====== */
 // אחרי הפריסה של ה-Apps Script אפשר להדביק כאן את ה-URL קבוע, או להזין דרך מסך ההגדרות (נשמר במכשיר).
 const DEFAULT_API_URL = '';
+const SHEET_URL = ''; // אופציונלי: קישור לגיליון להצגה בהגדרות
 const LS = { api:'tb_api', token:'tb_token', cache:'tb_cache', target:'tb_target', account:'tb_account' };
 const get = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
 const set = (k,v) => { try { localStorage.setItem(k, v); } catch {} };
@@ -442,7 +443,7 @@ function openSettings() {
     inp('כתובת ה-Web App (Apps Script)', LS.api, 'https://script.google.com/macros/s/…/exec','url'),
     inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
     inp('יעד לילות לטיול', LS.target, '21','number'),
-    el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד. הגיליון: ', el('a',{href:'https://docs.google.com/spreadsheets/d/13CJctztFH6jSPKJfp5QjDJd9n8IR6_j_tfdsGyvFhLg/edit',target:'_blank'},'מעקב הזמנות מלונות ↗')),
+    el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד.', SHEET_URL ? el('a',{href:SHEET_URL,target:'_blank',style:'margin-inline-start:6px'},'פתח את הגיליון ↗') : null),
     el('div',{class:'actions'},
       el('button',{class:'btn', onclick:async()=>{ save(); try{ const u=new URL(API()); u.searchParams.set('action','ping'); const r=await (await fetch(u)).json(); if(r.ok){ await api('list'); toast('החיבור תקין ✓'); } else toast('אין תגובה תקינה',true);}catch(e){toast('נכשל: '+e.message,true);} }}, '🔌 בדיקת חיבור'),
       el('button',{class:'btn primary', onclick:async()=>{ save(); closeSheet(); const t=Number(get(LS.target)||21); try{ await api('setTarget',{nights:t},'POST'); }catch{} await load(); }}, 'שמירה'))

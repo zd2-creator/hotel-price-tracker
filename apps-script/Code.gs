@@ -1,6 +1,6 @@
 /**
  * מעקב הזמנות מלונות — Backend (Google Apps Script)
- * גיליון: "מעקב הזמנות מלונות" (ID 13CJctztFH6jSPKJfp5QjDJd9n8IR6_j_tfdsGyvFhLg)
+ * גיליון: "מעקב הזמנות מלונות" (חשבון zachi.daniel2@gmail.com)
  *
  * התקנה (פעם אחת):
  *  1. בגיליון: תוספים → Apps Script → להדביק את הקובץ הזה → שמירה.
