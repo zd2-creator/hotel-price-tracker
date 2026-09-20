@@ -7,7 +7,8 @@
  *  2. להריץ את setup() (יוצר את הטאבים "הזמנות" + "היסטוריה" ומייצר API_TOKEN).
  *     ה-token מודפס ב-Logger (תצוגה → יומן ביצוע) וגם נשמר ב-Project Settings → Script properties.
  *  3. פריסה → פריסה חדשה → אפליקציית אינטרנט: Execute as Me, Who has access: Anyone → להעתיק את ה-URL.
- *  4. אופציונלי: Script properties TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID ולהריץ installTriggers() לתזכורות ביטול.
+ *  4. תזכורות טלגרם לפני סיום ביטול חינם: Script properties TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (+ אופציונלי REMINDER_DAYS, ברירת מחדל 14,7,3,1,0)
+ *     → להריץ installTriggers() פעם אחת (09:00 יומי) → sendTestReminder() לבדיקה. האפליקציה מראה 🔔 כשזה פעיל.
  *  ⚠ אחרי כל שינוי בקוד: פריסה → ניהול פריסות → עריכה → גרסה חדשה. שמירה בלבד לא מעדכנת את ה-URL.
  */
 
@@ -241,6 +242,14 @@ function appendBooking_(rec) { bookingsSheet_().appendRow(toRow_(rec, COLS)); }
 function writeBooking_(rowNum, rec) { bookingsSheet_().getRange(rowNum, 1, 1, COLS.length).setValues([toRow_(rec, COLS)]); }
 function deleteRow_(rowNum) { bookingsSheet_().deleteRow(rowNum); }
 
+function remindersStatus_() {
+  var token = props_().getProperty('TELEGRAM_BOT_TOKEN'), chat = props_().getProperty('TELEGRAM_CHAT_ID');
+  var days = (props_().getProperty('REMINDER_DAYS') || '14,7,3,1,0').split(',').map(function (x) { return Number(x.trim()); }).filter(function (n) { return !isNaN(n); });
+  var installed = false;
+  try { installed = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyReminders'; }); } catch (e) { }
+  return { configured: !!(token && chat), triggerInstalled: installed, active: !!(token && chat) && installed, days: days, hour: 9 };
+}
+
 function summary_(list) {
   var nights = 0, ils = 0, missingIls = 0;
   list.forEach(function (r) { nights += Number(r.nights) || 0; if (r.priceIls !== '' && r.priceIls !== null) ils += Number(r.priceIls) || 0; else if (r.price !== '') missingIls++; });
@@ -285,7 +294,7 @@ function handle_(action, p, by) {
   switch (action) {
     case 'list': {
       var list = listBookings_();
-      return json_({ ok: true, bookings: list, summary: summary_(list), platforms: PLATFORMS });
+      return json_({ ok: true, bookings: list, summary: summary_(list), platforms: PLATFORMS, reminders: remindersStatus_() });
     }
     case 'history': {
       var h = readAll_(historySheet_(), HISTORY_COLS).map(function (r) { delete r._row; return r; }).reverse();
@@ -369,14 +378,15 @@ function dailyReminders() {
   var token = props_().getProperty('TELEGRAM_BOT_TOKEN'), chat = props_().getProperty('TELEGRAM_CHAT_ID');
   if (!token || !chat) return;
   var today = new Date(Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd') + 'T00:00:00Z');
+  var thresholds = remindersStatus_().days;
   var lines = [];
   listBookings_().forEach(function (r) {
     if (!r.freeCancelUntil) return;
     var d = new Date(r.freeCancelUntil + 'T00:00:00Z');
     var days = Math.round((d - today) / 86400000);
-    if ([14, 7, 3, 1, 0].indexOf(days) >= 0) {
-      lines.push((days === 0 ? '🔴 היום' : '⏰ בעוד ' + days + ' ימים') + ' נגמר הביטול החינמי: *' + r.hotel + '* (' + r.platform + ', ' + r.destination + ')\n' +
-        r.checkIn + ' → ' + r.checkOut + ' · ' + r.nights + ' לילות · ' + (r.priceIls ? r.priceIls + ' ₪' : r.price + ' ' + r.currency));
+    if (thresholds.indexOf(days) >= 0) {
+      lines.push((days === 0 ? '🔴 היום' : days === 1 ? '🟠 מחר' : '⏰ בעוד ' + days + ' ימים') + ' נגמר הביטול החינמי: *' + r.hotel + '* (' + r.platform + (r.account ? ', יוזר ' + r.account : '') + ', ' + r.destination + ')\n' +
+        r.checkIn + ' → ' + r.checkOut + ' · ' + r.nights + ' לילות · ' + (r.priceIls ? r.priceIls + ' ₪' : r.price + ' ' + r.currency) + (r.confirmation ? ' · #' + r.confirmation : ''));
     }
   });
   if (!lines.length) return;
@@ -384,6 +394,17 @@ function dailyReminders() {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     payload: JSON.stringify({ chat_id: chat, text: lines.join('\n\n'), parse_mode: 'Markdown' })
   });
+}
+
+/** בדיקה: שולח הודעת טלגרם מיידית (דורש TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID ב-Script properties) */
+function sendTestReminder() {
+  var token = props_().getProperty('TELEGRAM_BOT_TOKEN'), chat = props_().getProperty('TELEGRAM_CHAT_ID');
+  if (!token || !chat) throw new Error('חסר TELEGRAM_BOT_TOKEN או TELEGRAM_CHAT_ID ב-Script properties');
+  var res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ chat_id: chat, text: '🏨 תזכורות ביטול חינם פעילות. ימים לפני: ' + remindersStatus_().days.join(', ') + ' (בשעה 09:00).' })
+  });
+  Logger.log(res.getContentText());
 }
 
 // בדיקה מהירה בעורך

@@ -24,7 +24,7 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" \
 | hotel | שם המלון (כמו שכתוב בהזמנה, באנגלית) | `Zee Luxury Boutique Hotel` |
 | destination | יעד: עיר/אי, מדינה | `קופנגן, תאילנד` |
 | platform | Booking / Agoda / Expedia / Hotels.com / Trip.com / Airbnb / ישירות מול המלון | `Booking` |
-| account | היוזר/החשבון שהזמין (מייל או שם) — אם רואים בצילום | `zachi@gmail` |
+| account | **היוזר שהזמין: `צחי` או `שירן`** (זכי אומר לך; אם לא אמר — שאל לפני שמירה) | `שירן` |
 | checkIn / checkOut | `YYYY-MM-DD` | `2027-08-11` |
 | roomType | סוג החדר | `Deluxe Pool View` |
 | breakfast | true/false — כלול ארוחת בוקר? | `true` |
@@ -39,14 +39,15 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" \
 
 ## זרימת עבודה כשזכי שולח צילום מסך של הזמנה
 1. **קרא מהתמונה** את כל השדות למעלה. שים לב במיוחד ל: שם המלון המדויק, תאריכים (בוקינג מציג "Wed, 11 Aug 2027"), "Free cancellation until/before <date>" (בוקינג לרוב מציג עד שעה מסוימת — קח את התאריך), "Breakfast included" / "Breakfast not included", הסכום הסופי (Total price) והמטבע, מספר ההזמנה (Confirmation number / Booking ID / Itinerary number).
-2. **חובה לפני שמירה:** הצג לזכי סיכום קצר של מה זיהית (מלון, פלטפורמה, תאריכים, לילות, מחיר, ביטול עד, א.בוקר) ושאל אם לשמור — **אלא אם** הוא כבר כתב במפורש "תוסיף"/"תשמור" יחד עם התמונה, ואז שמור מיד ודווח.
-3. שלח `upsert`:
+2. **יוזר:** זכי אומר יחד עם התמונה מאיזה יוזר הזמין ("זה מהיוזר של שירן"). אם לא ציין — שאל "מאיזה יוזר, צחי או שירן?" לפני השמירה. הערך נשמר בשדה `account` בדיוק כך: `צחי` / `שירן`.
+3. **חובה לפני שמירה:** הצג לזכי סיכום קצר של מה זיהית (מלון, פלטפורמה, תאריכים, לילות, מחיר, ביטול עד, א.בוקר) ושאל אם לשמור — **אלא אם** הוא כבר כתב במפורש "תוסיף"/"תשמור" יחד עם התמונה, ואז שמור מיד ודווח.
+4. שלח `upsert`:
 ```bash
 curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" -d '{
   "token":"__API_TOKEN__","action":"upsert","by":"robert",
   "booking":{"hotel":"...","destination":"...","platform":"Booking","checkIn":"2027-08-11","checkOut":"2027-08-18",
              "roomType":"...","breakfast":true,"price":6091,"currency":"ILS","freeCancelUntil":"2027-08-04",
-             "paid":false,"confirmation":"...","account":"...","notes":"..."}
+             "paid":false,"confirmation":"...","account":"שירן","notes":"..."}
 }'
 ```
    - `upsert` מחפש הזמנה **פעילה קיימת לאותו מלון**:
@@ -54,10 +55,10 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" -d '{
      - יש אחת → **מחליף אותה** (הישנה עוברת לארכיון עם "הוחלף", החדשה נכנסת). התשובה כוללת `"replaced":{...}` — דווח לזכי: "החלפתי את ההזמנה הקודמת (Agoda, 6,400 ₪) בחדשה (Booking, 6,091 ₪). הישנה בארכיון."
      - כמה דומות → `{"ok":false,"needsChoice":true,"candidates":[...]}` — הצג לזכי את המועמדות (id, פלטפורמה, תאריכים, מחיר) ושאל איזו להחליף, ואז שלח שוב עם `"replaceId":"<id>"`.
    - אם זכי אומר במפורש "זה מלון נוסף / לא להחליף" → שלח `action:"add"` (בלי החלפה).
-4. **דווח** בקצרה: מה נשמר, ה-summary שחזר (`summary.nights` מתוך `summary.targetNights`, `summary.totalIls`), ואם הוחלף — מה הוחלף. אם `priceIls` חזר ריק, ציין שההמרה לשקל לא הצליחה.
+5. **דווח** בקצרה: מה נשמר, ה-summary שחזר (`summary.nights` מתוך `summary.targetNights`, `summary.totalIls`), ואם הוחלף — מה הוחלף. אם `priceIls` חזר ריק, ציין שההמרה לשקל לא הצליחה.
 
 ## פעולות נוספות
-- **רשימה:** `{"action":"list"}` → `bookings[]` + `summary{count,nights,totalIls,targetNights}`. הצג טבלה קצרה: מלון · פלטפורמה · תאריכים · לילות · ₪ · ביטול עד.
+- **רשימה:** `{"action":"list"}` → `bookings[]` + `summary{count,nights,totalIls,targetNights}`. הצג טבלה קצרה: מלון · פלטפורמה · יוזר · תאריכים · לילות · ₪ · ביטול עד. אפשר לסנן לפי יוזר כשזכי שואל "מה הזמנתי מהיוזר של שירן".
 - **עדכון שדה:** `{"action":"update","id":"<id>","booking":{"freeCancelUntil":"2027-08-05"}}` (רק השדות שמשתנים).
 - **מחיקה (לארכיון):** `{"action":"delete","id":"<id>","note":"סיבה"}` — ההזמנה עוברת לטאב "ארכיון" (לא נעלמת). **תמיד לאשר עם זכי לפני מחיקה** אלא אם הוא כתב במפורש "תמחק את X". דווח: "העברתי לארכיון".
 - **ארכיון:** `{"action":"archive"}` → `archive[]` (כולל archivedAt, archiveAction=נמחק/הוחלף, archiveNote).
@@ -66,6 +67,9 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" -d '{
 - **היסטוריה:** `{"action":"history","limit":50}`.
 - **שחזור** מהארכיון לרשימה הפעילה: `{"action":"restore","id":"<id>"}`.
 - **חיפוש id** של מלון: קח מ-`list` לפי שם המלון (התאמה חלקית, לא רגיש לאותיות).
+
+## תזכורות ביטול
+המערכת (Apps Script) שולחת לזכי בטלגרם תזכורת 14/7/3/1/0 ימים לפני סיום ביטול חינם, ב-09:00. זה לא דרכך. אם זכי שואל "מתי נגמר הביטול של X" — קח מ-`list` את `freeCancelUntil` וחשב ימים.
 
 ## כללים
 - תאריכים תמיד `YYYY-MM-DD`. שנת הטיול היא 2027 אלא אם כתוב אחרת.

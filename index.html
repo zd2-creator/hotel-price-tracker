@@ -30,10 +30,10 @@ a{color:var(--brand)}
 .top h1 small{font-weight:500;opacity:.85;font-size:13px;display:block}
 .icon-btn{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;font-size:18px}
 .icon-btn:active{background:rgba(255,255,255,.28)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.stat{background:rgba(255,255,255,.12);border-radius:14px;padding:8px 10px;text-align:center}
-.stat b{display:block;font-size:19px;font-weight:800;line-height:1.1}
-.stat span{font-size:11.5px;opacity:.85}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.stat{background:rgba(255,255,255,.12);border-radius:14px;padding:8px 4px;text-align:center}
+.stat b{display:block;font-size:17px;font-weight:800;line-height:1.1;white-space:nowrap}
+.stat span{font-size:11px;opacity:.85;white-space:nowrap}
 .bar{height:6px;background:rgba(255,255,255,.2);border-radius:99px;margin-top:10px;overflow:hidden}
 .bar i{display:block;height:100%;background:#a7f3d0;border-radius:99px;transition:width .4s}
 .bar i.over{background:#fca5a5}
@@ -121,6 +121,9 @@ form textarea{min-height:64px;resize:vertical}
 .h-item .h-note{color:var(--muted);font-size:12.5px;margin-top:4px;word-break:break-word}
 .h-item .restore{font-size:12.5px;color:var(--brand);font-weight:700;margin-top:6px}
 
+.alert-line{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;background:rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;line-height:1.35}
+.alert-line.off{opacity:.8}
+.alert-line b{font-weight:700}
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.12);border-radius:12px;padding:3px;margin-top:12px}
 .tabs button{flex:1;padding:7px 4px;border-radius:10px;color:#fff;font-weight:600;font-size:13px;opacity:.8}
 .tabs button.on{background:#fff;color:var(--brand);opacity:1}
@@ -149,10 +152,12 @@ form textarea{min-height:64px;resize:vertical}
     </div>
     <div class="stats">
       <div class="stat"><b id="sNights">–</b><span>לילות סגורים</span></div>
-      <div class="stat"><b id="sTotal">–</b><span>סה״כ בשקלים</span></div>
+      <div class="stat"><b id="sTotal">–</b><span>סה״כ ₪</span></div>
+      <div class="stat"><b id="sAvg">–</b><span>ממוצע ללילה</span></div>
       <div class="stat"><b id="sCount">–</b><span>מלונות</span></div>
     </div>
     <div class="bar"><i id="bar" style="width:0%"></i></div>
+    <div class="alert-line" id="alertLine"></div>
     <div class="tabs">
       <button class="on" data-view="list">הזמנות</button>
       <button data-view="archive">ארכיון</button>
@@ -165,6 +170,7 @@ form textarea{min-height:64px;resize:vertical}
       <div class="search">🔎<input id="q" type="search" placeholder="חיפוש מלון / יעד / מספר הזמנה" autocomplete="off"><button id="qClear" style="color:var(--muted);display:none">✕</button></div>
     </div>
     <div class="chips" id="chipsPlatform"></div>
+    <div class="chips" id="chipsUser" style="padding-top:2px"></div>
     <div class="chips" id="chipsDest" style="padding-top:2px"></div>
     <div class="chips" id="chipsMisc" style="padding-top:2px">
       <button class="chip" data-f="breakfast">☕ עם ארוחת בוקר</button>
@@ -192,6 +198,7 @@ form textarea{min-height:64px;resize:vertical}
   </div>
 </div>
 
+<datalist id="accounts"></datalist>
 <button class="fab" id="fab" title="הוספת הזמנה">+</button>
 
 <div class="sheet-bg" id="sheetBg"></div>
@@ -212,8 +219,9 @@ const TOKEN = () => get(LS.token);
 const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a06','Hotels.com':'#b71c1c','Trip.com':'#287dfa','Airbnb':'#ff5a5f','ישירות מול המלון':'#0f766e','אחר':'#64748b' };
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
+const USERS = ['צחי','שירן']; // יוזרים קבועים לבחירה מהירה (אפשר להקליד גם אחר)
 
-let state = { bookings:[], summary:null, history:[], archive:[], filters:{ platform:'', dest:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+let state = { bookings:[], summary:null, reminders:null, history:[], archive:[], filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
 /* ====== עזרים ====== */
 const $ = s => document.querySelector(s);
@@ -249,9 +257,9 @@ async function api(action, params={}, method='GET') {
 
 async function load(silent=false) {
   try {
-    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; render(); } catch{} }
+    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; state.reminders=c.reminders||null; render(); } catch{} }
     const d = await api('list');
-    state.bookings = d.bookings; state.summary = d.summary; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary}));
+    state.bookings = d.bookings; state.summary = d.summary; state.reminders = d.reminders || null; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary, reminders:d.reminders}));
     $('#setupBox').hidden = true;
     render();
     if (!silent) toast('עודכן ✓');
@@ -279,6 +287,7 @@ function filtered() {
   let arr = state.bookings.filter(b => {
     if (f.platform && b.platform !== f.platform) return false;
     if (f.dest && b.destination !== f.dest) return false;
+    if (f.user && b.account !== f.user) return false;
     if (f.misc.has('breakfast') && !b.breakfast) return false;
     const ci = cancelInfo(b).kind;
     if (f.misc.has('cancelOpen') && !(ci==='open'||ci==='soon')) return false;
@@ -304,9 +313,17 @@ function render() {
   const target = S.targetNights || 21;
   $('#sNights').textContent = `${S.nights} / ${target}`;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
+  $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
   $('#sCount').textContent = S.count;
   $('#subtitle').textContent = `הטיול · ${target} לילות`;
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
+  // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר
+  const R = state.reminders; const al=$('#alertLine'); al.innerHTML='';
+  const upcoming = state.bookings.filter(b=>b.freeCancelUntil && daysUntil(b.freeCancelUntil)>=0).sort((a,b)=>a.freeCancelUntil.localeCompare(b.freeCancelUntil));
+  const next = upcoming[0];
+  if (R && R.active) al.append(el('span',{}, '🔔 '), el('span',{}, el('b',{},'תזכורות טלגרם פעילות'), ` (${R.days.join('/')} ימים לפני, 09:00)`));
+  else { al.classList.add('off'); al.append(el('span',{}, '🔕 '), el('span',{}, 'תזכורות טלגרם לא מוגדרות. ', el('a',{href:'#',style:'color:#a7f3d0',onclick:e=>{e.preventDefault();openSettings();}},'איך מפעילים?'))); }
+  if (next) { const d=daysUntil(next.freeCancelUntil); al.append(el('span',{style:'margin-inline-start:auto;white-space:nowrap;font-weight:700;color:'+(d<=3?'#fca5a5':d<=14?'#fde68a':'#a7f3d0')}, d===0?`⏳ היום: ${next.hotel}`:`⏳ ${next.hotel.split(' ').slice(0,2).join(' ')} · עוד ${d} ימים`)); }
 
   // chips
   const platforms = [...new Set(state.bookings.map(b=>b.platform).filter(Boolean))];
@@ -314,6 +331,10 @@ function render() {
   const cp=$('#chipsPlatform'); cp.innerHTML='';
   cp.append(el('button',{class:'chip'+(state.filters.platform?'':' on'), onclick:()=>{state.filters.platform='';render();}}, 'כל הפלטפורמות'));
   platforms.forEach(p => cp.append(el('button',{class:'chip'+(state.filters.platform===p?' on':''), onclick:()=>{state.filters.platform=state.filters.platform===p?'':p;render();}}, el('i',{class:'dot',style:`background:${pc(p)}`}), p)));
+  const users = [...new Set(state.bookings.map(b=>b.account).filter(Boolean))];
+  const cu=$('#chipsUser'); cu.innerHTML=''; cu.hidden = users.length<1;
+  cu.append(el('button',{class:'chip'+(state.filters.user?'':' on'), onclick:()=>{state.filters.user='';render();}}, 'כל היוזרים'));
+  users.forEach(u => cu.append(el('button',{class:'chip'+(state.filters.user===u?' on':''), onclick:()=>{state.filters.user=state.filters.user===u?'':u;render();}}, '👤 '+u)));
   const cd=$('#chipsDest'); cd.innerHTML=''; cd.hidden = dests.length<2;
   cd.append(el('button',{class:'chip'+(state.filters.dest?'':' on'), onclick:()=>{state.filters.dest='';render();}}, 'כל היעדים'));
   dests.forEach(d => cd.append(el('button',{class:'chip'+(state.filters.dest===d?' on':''), onclick:()=>{state.filters.dest=state.filters.dest===d?'':d;render();}}, '📍 '+d)));
@@ -322,13 +343,14 @@ function render() {
   const arr = filtered();
   const list=$('#list'); list.innerHTML='';
   const fn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
-  $('#countLine').textContent = arr.length ? `${arr.length} הזמנות · ${fn} לילות` : '';
+  const fils = arr.reduce((n,b)=>n+(Number(b.priceIls)||0),0);
+  $('#countLine').textContent = arr.length ? `${arr.length} הזמנות · ${fn} לילות · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}` : '';
   if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות. לחץ + להוספה, או שלח לרוברט צילום מסך של ההזמנה.')); return; }
   if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
 
   let prev = null;
   arr.forEach(b => {
-    if (state.sort==='checkIn' && prev && prev.checkOut && b.checkIn && !state.q && !state.filters.platform && !state.filters.dest && !state.filters.misc.size) {
+    if (state.sort==='checkIn' && prev && prev.checkOut && b.checkIn && !state.q && !state.filters.platform && !state.filters.dest && !state.filters.user && !state.filters.misc.size) {
       const g = daysUntil(b.checkIn) - daysUntil(prev.checkOut);
       if (g > 0) list.append(el('div',{class:'gap warn'}, `⚠️ ${g} ${g===1?'לילה':'לילות'} בלי מלון (${fmtD(prev.checkOut)} → ${fmtD(b.checkIn)})`));
       else if (g < 0) list.append(el('div',{class:'gap bad'}, `⛔ חפיפה של ${-g} ${-g===1?'לילה':'לילות'} עם ${prev.hotel}`));
@@ -345,10 +367,11 @@ function card(b) {
       el('span',{class:'badge'}, b.platform||'?')),
     el('div',{class:'c-dates'}, `${fmtD(b.checkIn)} ← ${fmtD(b.checkOut)}`, el('span',{class:'n'}, `${b.nights||'?'} לילות`)),
     el('div',{class:'c-foot'},
-      el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? el('small',{}, money(b.price,b.currency)) : null),
+      el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency),
+        el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : '')),
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
-        el('span',{class:'tag '+ci.cls}, ci.txt),
+        el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
         b.paid ? el('span',{class:'tag info'},'💳 שולם') : null,
         b.account ? el('span',{class:'tag'}, '👤 '+b.account) : null))
   );
@@ -400,6 +423,7 @@ function openDetail(b) {
       kv('צ׳ק-אין', fmtD(b.checkIn,true)), kv('צ׳ק-אאוט', fmtD(b.checkOut,true)),
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),
       kv('מחיר ששולם', money(b.price,b.currency)), kv('בשקלים', b.priceIls!==''?fmtN(b.priceIls)+' ₪':'—'),
+      kv('מחיר ללילה', (b.priceIls!==''&&b.nights>0)?fmtN(b.priceIls/b.nights)+' ₪':'—', false),
       kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':'לא / בתשלום במלון'),
       el('div',{class:'full'}, el('label',{},'ביטול חינם'), el('span',{class:'tag '+ci.cls}, ci.txt)),
       kv('מספר הזמנה', b.confirmation), kv('יוזר / חשבון', b.account),
@@ -447,11 +471,12 @@ function openForm(b={}, replacing=null) {
     sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
     sw('💳 שולם מראש', ()=>paid, v=>paid=v),
     el('div',{class:'row'}, f('סוג החדר','roomType'), f('מספר הזמנה','confirmation')),
-    el('div',{class:'row'}, f('יוזר / חשבון שהזמין','account','text',{attrs:{value:b.account??get(LS.account), list:'accounts'}}), f('קישור להזמנה','link','url')),
+    el('div',{class:'row'}, f('יוזר (צחי / שירן)','account','text',{attrs:{value:b.account??get(LS.account), list:'accounts', placeholder:'צחי'}}), f('קישור להזמנה','link','url')),
     el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, b.notes||'')),
     el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'submit',class:'btn primary'}, isEdit?'שמירה':'הוספה'))
   );
   form.querySelector('[name=link]').value = b.link||'';
+  const dl=$('#accounts'); dl.innerHTML=''; [...new Set([...USERS, ...state.bookings.map(x=>x.account).filter(Boolean)])].forEach(u=>dl.append(el('option',{value:u})));
   if (!isEdit && !b.account) form.querySelector('[name=account]').value = get(LS.account);
   // חישוב לילות חי
   const nightsHint = el('div',{class:'hint'}); form.querySelector('[name=checkOut]').parentElement.append(nightsHint);
@@ -467,6 +492,9 @@ function openSettings() {
     inp('כתובת ה-Web App (Apps Script)', LS.api, 'https://script.google.com/macros/s/…/exec','url'),
     inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
     inp('יעד לילות לטיול', LS.target, '21','number'),
+    el('div',{class:'f'}, el('label',{},'🔔 תזכורות טלגרם לפני סיום ביטול חינם'), el('div',{class:'hint', style:'background:#f8fafc;border-radius:12px;padding:10px 12px;line-height:1.5'},
+      (state.reminders&&state.reminders.active) ? `פעילות ✓ נשלחות ${state.reminders.days.join('/')} ימים לפני, בשעה 09:00.` :
+      'לא מוגדרות. בעורך Apps Script של הגיליון: ⚙ הגדרות הפרויקט → Script properties → להוסיף TELEGRAM_BOT_TOKEN ו-TELEGRAM_CHAT_ID (431692318), ואז להריץ installTriggers() ו-sendTestReminder(). ברירת מחדל: 14, 7, 3, 1, 0 ימים לפני (REMINDER_DAYS).')),
     el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד.', SHEET_URL ? el('a',{href:SHEET_URL,target:'_blank',style:'margin-inline-start:6px'},'פתח את הגיליון ↗') : null),
     el('div',{class:'actions'},
       el('button',{class:'btn', onclick:async()=>{ save(); try{ const u=new URL(API()); u.searchParams.set('action','ping'); const r=await (await fetch(u)).json(); if(r.ok){ await api('list'); toast('החיבור תקין ✓'); } else toast('אין תגובה תקינה',true);}catch(e){toast('נכשל: '+e.message,true);} }}, '🔌 בדיקת חיבור'),
