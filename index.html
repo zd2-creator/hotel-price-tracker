@@ -77,6 +77,7 @@ a{color:var(--brand)}
 .fab{position:fixed;inset-inline-start:50%;transform:translateX(50%);bottom:calc(20px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;background:var(--brand);color:#fff;font-size:32px;font-weight:300;display:grid;place-items:center;box-shadow:0 10px 24px rgba(15,118,110,.4);z-index:15}
 [dir=rtl] .fab{inset-inline-start:auto;right:50%;transform:translateX(50%)}
 .fab:active{transform:translateX(50%) scale(.95)}
+.fab[hidden]{display:none}
 
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -121,7 +122,7 @@ form textarea{min-height:64px;resize:vertical}
 .h-item .restore{font-size:12.5px;color:var(--brand);font-weight:700;margin-top:6px}
 
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.12);border-radius:12px;padding:3px;margin-top:12px}
-.tabs button{flex:1;padding:7px;border-radius:10px;color:#fff;font-weight:600;font-size:13.5px;opacity:.8}
+.tabs button{flex:1;padding:7px 4px;border-radius:10px;color:#fff;font-weight:600;font-size:13px;opacity:.8}
 .tabs button.on{background:#fff;color:var(--brand);opacity:1}
 
 .toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
@@ -154,6 +155,7 @@ form textarea{min-height:64px;resize:vertical}
     <div class="bar"><i id="bar" style="width:0%"></i></div>
     <div class="tabs">
       <button class="on" data-view="list">הזמנות</button>
+      <button data-view="archive">ארכיון</button>
       <button data-view="history">היסטוריה</button>
     </div>
   </header>
@@ -173,6 +175,10 @@ form textarea{min-height:64px;resize:vertical}
     </div>
     <div class="sortrow"><span id="countLine"></span><label>מיון: <select id="sort"><option value="checkIn">תאריך הגעה</option><option value="cancel">מועד ביטול</option><option value="priceDesc">מחיר (יורד)</option><option value="priceAsc">מחיר (עולה)</option><option value="hotel">שם מלון</option></select></label></div>
     <div class="list" id="list"></div>
+  </section>
+
+  <section id="viewArchive" hidden>
+    <div class="hist" id="arch"></div>
   </section>
 
   <section id="viewHistory" hidden>
@@ -207,7 +213,7 @@ const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
 
-let state = { bookings:[], summary:null, history:[], filters:{ platform:'', dest:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+let state = { bookings:[], summary:null, history:[], archive:[], filters:{ platform:'', dest:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
 /* ====== עזרים ====== */
 const $ = s => document.querySelector(s);
@@ -250,6 +256,9 @@ async function load(silent=false) {
     render();
     if (!silent) toast('עודכן ✓');
   } catch (e) { toast(e.message, true); render(); }
+}
+async function loadArchive() {
+  try { const d = await api('archive'); state.archive = d.archive; renderArchive(); } catch (e) { toast(e.message, true); }
 }
 async function loadHistory() {
   try { const d = await api('history'); state.history = d.history; renderHistory(); } catch (e) { toast(e.message, true); }
@@ -351,12 +360,27 @@ function renderHistory() {
   if (!state.history.length) { h.append(el('div',{class:'empty'}, el('b',{},'🕓'), 'עוד אין היסטוריה.')); return; }
   const cls = a => a.includes('נמחק')?'bad':a.includes('הוחלף')?'warn':a.includes('נוסף')?'ok':a.includes('שוחזר')?'info':'';
   state.history.forEach(x => {
-    const canRestore = (x.action==='נמחק'||x.action==='הוחלף') && !state.bookings.some(b=>String(b.id)===String(x.id));
     h.append(el('div',{class:'h-item'},
       el('div',{class:'h-top'}, el('span',{class:'tag '+cls(x.action)}, x.action), el('time',{}, (x.ts||'').replace('T',' ').slice(0,16)+(x.by?' · '+x.by:''))),
       el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · ${fmtD(x.checkIn)}←${fmtD(x.checkOut)} · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}`),
-      x.note ? el('div',{class:'h-note'}, x.note) : null,
-      canRestore ? el('button',{class:'restore', onclick:async()=>{ if(!confirm('לשחזר את ההזמנה הזו לרשימה הפעילה?')) return; try{ await api('restore',{id:x.id},'POST'); toast('שוחזר ✓'); await load(true); await loadHistory(); }catch(e){toast(e.message,true);} }}, '↩ שחזר לרשימה') : null
+      x.note ? el('div',{class:'h-note'}, x.note) : null
+    ));
+  });
+}
+
+function renderArchive() {
+  const h=$('#arch'); h.innerHTML='';
+  if (!state.archive.length) { h.append(el('div',{class:'empty'}, el('b',{},'🗄️'), 'הארכיון ריק. הזמנות שנמחקות או מוחלפות מגיעות לכאן.')); return; }
+  state.archive.forEach(x => {
+    const active = state.bookings.some(b=>String(b.id)===String(x.id));
+    h.append(el('div',{class:'h-item', style:`border-inline-start:5px solid ${pc(x.platform)}`},
+      el('div',{class:'h-top'}, el('span',{class:'tag '+(x.archiveAction==='הוחלף'?'warn':'bad')}, x.archiveAction||'בארכיון'), el('time',{}, (x.archivedAt||'').replace('T',' ').slice(0,16)+(x.archivedBy?' · '+x.archivedBy:''))),
+      el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · 📍${x.destination||''}`),
+      el('div',{class:'h-note'}, `${fmtD(x.checkIn,true)} ← ${fmtD(x.checkOut,true)} · ${x.nights||'?'} לילות · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}${x.breakfast?' · ☕':''}${x.confirmation?' · #'+x.confirmation:''}`),
+      x.archiveNote ? el('div',{class:'h-note'}, x.archiveNote) : null,
+      el('div',{style:'display:flex;gap:14px;margin-top:8px'},
+        active ? null : el('button',{class:'restore', onclick:async()=>{ if(!confirm('לשחזר את "'+x.hotel+'" לרשימה הפעילה?')) return; try{ await api('restore',{id:x.id},'POST'); toast('שוחזר ✓'); await load(true); await loadArchive(); }catch(e){toast(e.message,true);} }}, '↩ שחזר לרשימה'),
+        el('button',{class:'restore', style:'color:var(--bad)', onclick:async()=>{ if(!confirm('למחוק לצמיתות את "'+x.hotel+'" מהארכיון? (יישאר רק רישום ביומן ההיסטוריה)')) return; try{ await api('purge',{id:x.id},'POST'); toast('נמחק לצמיתות'); await loadArchive(); }catch(e){toast(e.message,true);} }}, '🗑 מחק לצמיתות'))
     ));
   });
 }
@@ -385,7 +409,7 @@ function openDetail(b) {
     el('div',{class:'actions'},
       el('button',{class:'btn primary', onclick:()=>openForm(b)}, '✏️ עריכה'),
       el('button',{class:'btn', onclick:()=>openForm({...b, id:'', confirmation:'', createdAt:''}, b)}, '🔁 הזמנתי מחדש'),
-      el('button',{class:'btn danger full', onclick:async()=>{ const reason = prompt('למחוק את "'+b.hotel+'"? ההזמנה תישמר בהיסטוריה.\nסיבה (לא חובה):'); if (reason===null) return; try{ await api('delete',{id:b.id, note:reason},'POST'); toast('נמחק. נשמר בהיסטוריה'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '🗑 מחיקה'))
+      el('button',{class:'btn danger full', onclick:async()=>{ const reason = prompt('להעביר את "'+b.hotel+'" לארכיון?\nסיבה (לא חובה):'); if (reason===null) return; try{ await api('delete',{id:b.id, note:reason},'POST'); toast('הועבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '🗑 מחיקה'))
   ));
 }
 
@@ -407,14 +431,14 @@ function openForm(b={}, replacing=null) {
     const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
     try {
       if (isEdit) { await api('update',{id:b.id, booking},'POST'); toast('עודכן ✓'); }
-      else if (replacing) { await api('add',{booking, replaceId:replacing.id, note:'הזמנה מחדש'},'POST'); toast('הוחלף. הישנה בהיסטוריה ✓'); }
+      else if (replacing) { await api('add',{booking, replaceId:replacing.id, note:'הזמנה מחדש'},'POST'); toast('הוחלף. הישנה בארכיון ✓'); }
       else { await api('add',{booking},'POST'); toast('נוסף ✓'); }
       if (booking.account) set(LS.account, booking.account);
       closeSheet(); await load(true);
     } catch(e) { toast(e.message,true); } finally { btn.disabled=false; }
   }},
     el('h2',{}, isEdit?'עריכת הזמנה':replacing?'הזמנה מחדש':'הזמנה חדשה'),
-    replacing ? el('div',{class:'replace-note'}, `🔁 ההזמנה הישנה (${replacing.platform} · ${money(replacing.price,replacing.currency)}) תימחק מהרשימה ותישמר בהיסטוריה.`) : null,
+    replacing ? el('div',{class:'replace-note'}, `🔁 ההזמנה הישנה (${replacing.platform} · ${money(replacing.price,replacing.currency)}) תעבור לארכיון.`) : null,
     f('שם המלון *','hotel','text',{full:true, attrs:{required:true, autofocus:!isEdit}}),
     el('div',{class:'row'}, f('יעד (עיר / אי)','destination'), el('div',{class:'f'}, el('label',{},'פלטפורמה'), platSel)),
     el('div',{class:'row'}, f('צ׳ק-אין','checkIn','date'), f('צ׳ק-אאוט','checkOut','date')),
@@ -454,7 +478,7 @@ function openSettings() {
 
 /* ====== אירועים ====== */
 $('#fab').onclick = () => openForm();
-$('#btnRefresh').onclick = () => { load(); if (state.view==='history') loadHistory(); };
+$('#btnRefresh').onclick = () => { load(); if (state.view==='history') loadHistory(); if (state.view==='archive') loadArchive(); };
 $('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings;
 $('#q').oninput = e => { state.q = e.target.value; $('#qClear').style.display = state.q?'':'none'; render(); };
 $('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').style.display='none'; render(); };
@@ -462,8 +486,9 @@ $('#sort').onchange = e => { state.sort=e.target.value; render(); };
 document.querySelectorAll('#chipsMisc .chip').forEach(c => c.onclick = () => { const k=c.dataset.f; state.filters.misc.has(k)?state.filters.misc.delete(k):state.filters.misc.add(k); render(); });
 document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===t));
-  state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = state.view!=='list';
+  state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewArchive').hidden = state.view!=='archive'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = state.view!=='list';
   if (state.view==='history') loadHistory();
+  if (state.view==='archive') loadArchive();
 });
 // גרירת ה-sheet למטה סוגרת
 let sy=null; $('#sheet').addEventListener('touchstart',e=>{ if($('#sheet').scrollTop===0) sy=e.touches[0].clientY; },{passive:true});

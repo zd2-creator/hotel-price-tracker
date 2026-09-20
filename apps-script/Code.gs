@@ -13,6 +13,7 @@
 
 var SHEET_BOOKINGS = 'הזמנות';
 var SHEET_HISTORY = 'היסטוריה';
+var SHEET_ARCHIVE = 'ארכיון';
 
 // [key, header, type]  type: text | date | num | bool
 var COLS = [
@@ -39,6 +40,8 @@ var COLS = [
   ['updatedAt', 'עודכן', 'text']
 ];
 var HISTORY_COLS = [['ts', 'זמן', 'text'], ['action', 'פעולה', 'text'], ['by', 'מי', 'text'], ['note', 'פירוט', 'text']].concat(COLS);
+// ארכיון: הזמנות שנמחקו/הוחלפו. אפשר לשחזר או למחוק לצמיתות. (ההיסטוריה היא יומן בלבד.)
+var ARCHIVE_COLS = COLS.concat([['archivedAt', 'הועבר לארכיון', 'text'], ['archiveAction', 'סיבה', 'text'], ['archivedBy', 'ע"י', 'text'], ['archiveNote', 'הערה', 'text']]);
 
 var PLATFORMS = ['Booking', 'Agoda', 'Expedia', 'Hotels.com', 'Trip.com', 'Airbnb', 'ישירות מול המלון', 'אחר'];
 
@@ -56,6 +59,8 @@ function setup() {
   writeHeader_(bookings, COLS);
   var history = ss.getSheetByName(SHEET_HISTORY) || ss.insertSheet(SHEET_HISTORY);
   writeHeader_(history, HISTORY_COLS);
+  var archive = ss.getSheetByName(SHEET_ARCHIVE) || ss.insertSheet(SHEET_ARCHIVE);
+  writeHeader_(archive, ARCHIVE_COLS);
 
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty('API_TOKEN')) props.setProperty('API_TOKEN', Utilities.getUuid().replace(/-/g, ''));
@@ -179,6 +184,23 @@ function fxRate_(cur) {
 
 function bookingsSheet_() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_BOOKINGS); }
 function historySheet_() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_HISTORY); }
+function archiveSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_ARCHIVE);
+  if (!sh) { sh = ss.insertSheet(SHEET_ARCHIVE); writeHeader_(sh, ARCHIVE_COLS); }
+  return sh;
+}
+function archive_(rec, action, by, note) {
+  var row = {}; ARCHIVE_COLS.forEach(function (c) { row[c[0]] = rec[c[0]] === undefined ? '' : rec[c[0]]; });
+  row.archivedAt = now_(); row.archiveAction = action; row.archivedBy = by || ''; row.archiveNote = note || '';
+  archiveSheet_().appendRow(toRow_(row, ARCHIVE_COLS));
+}
+function listArchive_() { return readAll_(archiveSheet_(), ARCHIVE_COLS); }
+function findArchived_(id) {
+  var all = listArchive_();
+  for (var i = all.length - 1; i >= 0; i--) if (String(all[i].id) === String(id)) return all[i];
+  return null;
+}
 
 function readAll_(sh, cols) {
   if (!sh || sh.getLastRow() < 2) return [];
@@ -278,7 +300,7 @@ function handle_(action, p, by) {
       var replaced = null;
       if (p.replaceId) { var old = findRow_(p.replaceId); if (!old) return json_({ ok: false, error: 'replaceId לא נמצא' }); deleteRow_(old._row); delete old._row; replaced = old; }
       var rec = normalize_(b); rec.id = newId_(); rec.source = by; rec.createdAt = now_(); rec.updatedAt = rec.createdAt;
-      if (replaced) logHistory_('הוחלף', by, 'הוחלף בהזמנה ' + rec.id + ' (' + rec.platform + ' ' + rec.price + ' ' + rec.currency + ')', replaced);
+      if (replaced) { var why = 'הוחלף בהזמנה ' + rec.id + ' (' + rec.platform + ' ' + rec.price + ' ' + rec.currency + ')'; archive_(replaced, 'הוחלף', by, why); logHistory_('הוחלף', by, why, replaced); }
       appendBooking_(rec);
       logHistory_(replaced ? 'נוסף (החלפה)' : 'נוסף', by, replaced ? 'החליף את ' + replaced.id : (p.note || ''), rec);
       return json_({ ok: true, booking: rec, replaced: replaced, summary: summary_(listBookings_()) });
@@ -312,19 +334,30 @@ function handle_(action, p, by) {
     case 'delete': {
       var old = findRow_(p.id); if (!old) return json_({ ok: false, error: 'לא נמצא' });
       deleteRow_(old._row); delete old._row;
-      logHistory_('נמחק', by, p.note || p.reason || '', old);
-      return json_({ ok: true, deleted: old, summary: summary_(listBookings_()) });
+      archive_(old, 'נמחק', by, p.note || p.reason || '');
+      logHistory_('נמחק (לארכיון)', by, p.note || p.reason || '', old);
+      return json_({ ok: true, deleted: old, archived: true, summary: summary_(listBookings_()) });
+    }
+    case 'archive': {
+      var a = listArchive_().map(function (r) { delete r._row; return r; }).reverse();
+      return json_({ ok: true, archive: a });
     }
     case 'restore': {
-      // שחזור מהיסטוריה: מחזיר רשומה מחוקה/מוחלפת לטבלה הפעילה (לפי id שמופיע בהיסטוריה)
-      var h = readAll_(historySheet_(), HISTORY_COLS).reverse();
-      var src = null;
-      for (var i = 0; i < h.length; i++) if (String(h[i].id) === String(p.id) && (h[i].action === 'נמחק' || h[i].action === 'הוחלף')) { src = h[i]; break; }
-      if (!src) return json_({ ok: false, error: 'לא נמצאה רשומה לשחזור' });
+      // מחזיר הזמנה מהארכיון לרשימה הפעילה
+      var src = findArchived_(p.id); if (!src) return json_({ ok: false, error: 'לא נמצא בארכיון' });
       if (findRow_(p.id)) return json_({ ok: false, error: 'ההזמנה כבר פעילה' });
       var rec = {}; COLS.forEach(function (c) { rec[c[0]] = src[c[0]]; }); rec.updatedAt = now_();
-      appendBooking_(rec); logHistory_('שוחזר', by, '', rec);
-      return json_({ ok: true, booking: rec });
+      appendBooking_(rec);
+      archiveSheet_().deleteRow(src._row);
+      logHistory_('שוחזר מהארכיון', by, '', rec);
+      return json_({ ok: true, booking: rec, summary: summary_(listBookings_()) });
+    }
+    case 'purge': {
+      // מחיקה לצמיתות מהארכיון (נשאר רישום ביומן ההיסטוריה בלבד)
+      var src = findArchived_(p.id); if (!src) return json_({ ok: false, error: 'לא נמצא בארכיון' });
+      archiveSheet_().deleteRow(src._row); delete src._row;
+      logHistory_('נמחק לצמיתות', by, p.note || '', src);
+      return json_({ ok: true, purged: src });
     }
     case 'setTarget': { props_().setProperty('TARGET_NIGHTS', String(Number(p.nights) || 21)); return json_({ ok: true }); }
     default: return json_({ ok: false, error: 'פעולה לא מוכרת: ' + action });
