@@ -190,7 +190,7 @@ function readAll_(sh, cols) {
       var v = row[j];
       if (c[2] === 'date') v = normDate_(v);
       else if (c[2] === 'bool') v = normBool_(v);
-      else if (v instanceof Date) v = Utilities.formatDate(v, 'Asia/Jerusalem', 'yyyy-MM-dd');
+      else if (v instanceof Date) v = Utilities.formatDate(v, 'Asia/Jerusalem', ['ts', 'createdAt', 'updatedAt'].indexOf(c[0]) >= 0 ? "yyyy-MM-dd'T'HH:mm:ss" : 'yyyy-MM-dd');
       r[c[0]] = v;
       if (v !== '' && v !== null && v !== false) empty = false;
     });

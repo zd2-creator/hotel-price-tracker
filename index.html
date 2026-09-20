@@ -181,7 +181,7 @@ form textarea{min-height:64px;resize:vertical}
 
   <div id="setupBox" class="setup" hidden>
     <h3>הגדרה ראשונית</h3>
-    <p class="hint">צריך את כתובת ה-Web App של ה-Apps Script ואת הטוקן (נוצר ב-setup()).</p>
+    <p class="hint">חסר הטוקן. פתח את ⚙ הגדרות והדבק אותו (או פתח את הקישור שקיבלת עם ?token=).</p>
     <button class="btn primary full" id="btnSetup">פתח הגדרות</button>
   </div>
 </div>
@@ -195,7 +195,7 @@ form textarea{min-height:64px;resize:vertical}
 <script>
 /* ====== הגדרות ====== */
 // אחרי הפריסה של ה-Apps Script אפשר להדביק כאן את ה-URL קבוע, או להזין דרך מסך ההגדרות (נשמר במכשיר).
-const DEFAULT_API_URL = '';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxcQh48Ms3EZykmRmQo3rHk3ri96Fr61QR5TqxWOeDDwpySQzjM_-SCns8mmMRoqZxFYA/exec';
 const SHEET_URL = ''; // אופציונלי: קישור לגיליון להצגה בהגדרות
 const LS = { api:'tb_api', token:'tb_token', cache:'tb_cache', target:'tb_target', account:'tb_account' };
 const get = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
@@ -470,6 +470,8 @@ let sy=null; $('#sheet').addEventListener('touchstart',e=>{ if($('#sheet').scrol
 $('#sheet').addEventListener('touchend',e=>{ if(sy!==null && e.changedTouches[0].clientY-sy>90) closeSheet(); sy=null; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && API() && TOKEN()) load(true); });
 
+// קישור חד-פעמי: ?token=... נשמר במכשיר ונמחק מהכתובת
+try { const qp = new URLSearchParams(location.search); if (qp.get('token')) { set(LS.token, qp.get('token').trim()); if (qp.get('api')) set(LS.api, qp.get('api')); history.replaceState(null, '', location.pathname); } } catch {}
 if (!API() || !TOKEN()) { $('#setupBox').hidden=false; render(); } else load(true);
 </script>
 </body>
