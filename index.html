@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>הזמנות מלונות · הטיול</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f5f7;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--brand:#0f766e;--brand-soft:#ccfbf1;
+  --ok:#15803d;--ok-soft:#dcfce7;--warn:#b45309;--warn-soft:#fef3c7;--bad:#b91c1c;--bad-soft:#fee2e2;--info:#1d4ed8;--info-soft:#dbeafe;
+  --radius:16px;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(16,24,40,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Heebo,-apple-system,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--brand)}
+.app{max-width:640px;margin:0 auto;min-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f766e,#115e59);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;border-radius:0 0 22px 22px;box-shadow:0 6px 20px rgba(15,118,110,.25)}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top h1{font-size:20px;font-weight:800;margin:0;letter-spacing:-.2px}
+.top h1 small{font-weight:500;opacity:.85;font-size:13px;display:block}
+.icon-btn{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;font-size:18px}
+.icon-btn:active{background:rgba(255,255,255,.28)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat{background:rgba(255,255,255,.12);border-radius:14px;padding:8px 10px;text-align:center}
+.stat b{display:block;font-size:19px;font-weight:800;line-height:1.1}
+.stat span{font-size:11.5px;opacity:.85}
+.bar{height:6px;background:rgba(255,255,255,.2);border-radius:99px;margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:#a7f3d0;border-radius:99px;transition:width .4s}
+.bar i.over{background:#fca5a5}
+
+/* filters */
+.tools{padding:12px 16px 4px}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+.search input{flex:1;border:0;outline:0;background:none;font-size:16px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:13.5px;font-weight:500;color:#374151;white-space:nowrap}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:6px;vertical-align:1px}
+.sortrow{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 0;font-size:13px;color:var(--muted)}
+.sortrow select{border:0;background:none;color:var(--brand);font-weight:600;padding:4px 0}
+
+/* list */
+.list{padding:8px 16px 0;display:flex;flex-direction:column;gap:10px}
+.gap{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:0 6px}
+.gap::before,.gap::after{content:"";flex:1;border-top:1px dashed var(--line)}
+.gap.warn{color:var(--warn)}.gap.bad{color:var(--bad)}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;border:1px solid transparent;position:relative;overflow:hidden}
+.card:active{transform:scale(.995)}
+.card::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:var(--pc,#94a3b8)}
+.c-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.c-title{font-weight:700;font-size:16.5px;line-height:1.25}
+.c-sub{color:var(--muted);font-size:13px;margin-top:2px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--pc,#94a3b8);color:#fff;flex:0 0 auto}
+.c-dates{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;font-weight:500}
+.c-dates .n{background:var(--brand-soft);color:#0f5132;padding:2px 8px;border-radius:8px;font-size:12.5px;font-weight:700}
+.c-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap}
+.price{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.price small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tag{font-size:12px;padding:4px 8px;border-radius:8px;background:#f1f5f9;color:#334155;font-weight:600;white-space:nowrap}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.info{background:var(--info-soft);color:var(--info)}
+.empty{text-align:center;color:var(--muted);padding:48px 16px;font-size:15px}
+.empty b{display:block;font-size:40px;margin-bottom:8px}
+
+/* fab */
+.fab{position:fixed;inset-inline-start:50%;transform:translateX(50%);bottom:calc(20px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;background:var(--brand);color:#fff;font-size:32px;font-weight:300;display:grid;place-items:center;box-shadow:0 10px 24px rgba(15,118,110,.4);z-index:15}
+[dir=rtl] .fab{inset-inline-start:auto;right:50%;transform:translateX(50%)}
+.fab:active{transform:translateX(50%) scale(.95)}
+
+/* bottom sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet-bg.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);border-radius:22px 22px 0 0;max-height:92dvh;overflow:auto;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);padding:8px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.sheet.open{transform:none}
+.handle{width:40px;height:5px;border-radius:99px;background:#d1d5db;margin:4px auto 12px}
+.sheet h2{font-size:18px;margin:0 0 10px;font-weight:800}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:8px}
+.kv div{background:#f8fafc;border-radius:12px;padding:8px 10px}
+.kv div.full{grid-column:1/-1}
+.kv label{display:block;font-size:11.5px;color:var(--muted);font-weight:500}
+.kv span{font-weight:600;font-size:14.5px;word-break:break-word}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.btn{padding:12px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;background:#f1f5f9;color:#111827}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.danger{background:var(--bad-soft);color:var(--bad)}
+.btn.ghost{background:none;border:1px solid var(--line)}
+.btn.full{grid-column:1/-1}
+.btn:disabled{opacity:.5}
+form .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+form .f{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+form .f.full{grid-column:1/-1}
+form label{font-size:12.5px;color:var(--muted);font-weight:600}
+form input,form select,form textarea{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;font-size:16px;width:100%;outline:0}
+form input:focus,form select:focus,form textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+form textarea{min-height:64px;resize:vertical}
+.toggle{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
+.toggle b{font-weight:600;font-size:15px}
+.switch{width:48px;height:28px;border-radius:99px;background:#d1d5db;position:relative;transition:.2s}
+.switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on{background:var(--brand)}
+.switch.on::after{transform:translateX(-20px)}
+.replace-note{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13.5px;margin-top:10px;font-weight:600}
+
+/* history */
+.hist{padding:8px 16px;display:flex;flex-direction:column;gap:8px}
+.h-item{background:var(--card);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);font-size:14px}
+.h-item .h-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.h-item time{font-size:12px;color:var(--muted)}
+.h-item .h-note{color:var(--muted);font-size:12.5px;margin-top:4px;word-break:break-word}
+.h-item .restore{font-size:12.5px;color:var(--brand);font-weight:700;margin-top:6px}
+
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,.12);border-radius:12px;padding:3px;margin-top:12px}
+.tabs button{flex:1;padding:7px;border-radius:10px;color:#fff;font-weight:600;font-size:13.5px;opacity:.8}
+.tabs button.on{background:#fff;color:var(--brand);opacity:1}
+
+.toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.toast.err{background:var(--bad)}
+.loading{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#5eead4,transparent);background-size:200% 100%;animation:ld 1s linear infinite;z-index:70;display:none}
+.loading.on{display:block}
+@keyframes ld{to{background-position:-200% 0}}
+.hint{font-size:12.5px;color:var(--muted);margin-top:4px}
+.setup{margin:24px 16px;background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.setup h3{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"></div>
+<div class="app">
+  <header class="top">
+    <div class="top-row">
+      <h1>🏨 הזמנות מלונות <small id="subtitle">הטיול · 21 לילות</small></h1>
+      <div style="display:flex;gap:6px">
+        <button class="icon-btn" id="btnRefresh" title="רענון">⟳</button>
+        <button class="icon-btn" id="btnSettings" title="הגדרות">⚙︎</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sNights">–</b><span>לילות סגורים</span></div>
+      <div class="stat"><b id="sTotal">–</b><span>סה״כ בשקלים</span></div>
+      <div class="stat"><b id="sCount">–</b><span>מלונות</span></div>
+    </div>
+    <div class="bar"><i id="bar" style="width:0%"></i></div>
+    <div class="tabs">
+      <button class="on" data-view="list">הזמנות</button>
+      <button data-view="history">היסטוריה</button>
+    </div>
+  </header>
+
+  <section id="viewList">
+    <div class="tools">
+      <div class="search">🔎<input id="q" type="search" placeholder="חיפוש מלון / יעד / מספר הזמנה" autocomplete="off"><button id="qClear" style="color:var(--muted);display:none">✕</button></div>
+    </div>
+    <div class="chips" id="chipsPlatform"></div>
+    <div class="chips" id="chipsDest" style="padding-top:2px"></div>
+    <div class="chips" id="chipsMisc" style="padding-top:2px">
+      <button class="chip" data-f="breakfast">☕ עם ארוחת בוקר</button>
+      <button class="chip" data-f="cancelOpen">🟢 ביטול חינם פתוח</button>
+      <button class="chip" data-f="cancelSoon">⏳ ביטול נגמר בקרוב</button>
+      <button class="chip" data-f="noCancel">🔒 בלי ביטול</button>
+      <button class="chip" data-f="unpaid">💳 לא שולם</button>
+    </div>
+    <div class="sortrow"><span id="countLine"></span><label>מיון: <select id="sort"><option value="checkIn">תאריך הגעה</option><option value="cancel">מועד ביטול</option><option value="priceDesc">מחיר (יורד)</option><option value="priceAsc">מחיר (עולה)</option><option value="hotel">שם מלון</option></select></label></div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section id="viewHistory" hidden>
+    <div class="hist" id="hist"></div>
+  </section>
+
+  <div id="setupBox" class="setup" hidden>
+    <h3>הגדרה ראשונית</h3>
+    <p class="hint">צריך את כתובת ה-Web App של ה-Apps Script ואת הטוקן (נוצר ב-setup()).</p>
+    <button class="btn primary full" id="btnSetup">פתח הגדרות</button>
+  </div>
+</div>
+
+<button class="fab" id="fab" title="הוספת הזמנה">+</button>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet"><div class="handle"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== הגדרות ====== */
+// אחרי הפריסה של ה-Apps Script אפשר להדביק כאן את ה-URL קבוע, או להזין דרך מסך ההגדרות (נשמר במכשיר).
+const DEFAULT_API_URL = '';
+const LS = { api:'tb_api', token:'tb_token', cache:'tb_cache', target:'tb_target', account:'tb_account' };
+const get = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+const set = (k,v) => { try { localStorage.setItem(k, v); } catch {} };
+const API = () => get(LS.api) || DEFAULT_API_URL;
+const TOKEN = () => get(LS.token);
+
+const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a06','Hotels.com':'#b71c1c','Trip.com':'#287dfa','Airbnb':'#ff5a5f','ישירות מול המלון':'#0f766e','אחר':'#64748b' };
+const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
+const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
+
+let state = { bookings:[], summary:null, history:[], filters:{ platform:'', dest:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+
+/* ====== עזרים ====== */
+const $ = s => document.querySelector(s);
+const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for (const [k,v] of Object.entries(attrs)) { if (k==='class') e.className=v; else if (k==='html') e.innerHTML=v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v!==false&&v!=null) e.setAttribute(k,v); } for (const k of kids.flat()) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k)); return e; };
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const daysUntil = iso => { if(!iso) return null; const a=new Date(todayISO()+'T00:00:00'), b=new Date(iso+'T00:00:00'); return Math.round((b-a)/86400000); };
+const WD = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const fmtD = (iso, withYear=false) => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return `${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}${withYear?'.'+String(d.getFullYear()).slice(2):''}`; };
+const fmtN = n => (n===''||n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:0});
+const money = (n,cur) => (n===''||n==null) ? '—' : `${fmtN(n)} ${SYM[cur]||cur||''}`;
+const pc = p => PLATFORM_COLORS[p] || '#64748b';
+let toastT; const toast = (m, err=false) => { const t=$('#toast'); t.textContent=m; t.className='toast show'+(err?' err':''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast', err?4000:2200); };
+const loading = on => $('#loading').classList.toggle('on', !!on);
+
+/* ====== API ====== */
+async function api(action, params={}, method='GET') {
+  if (!API() || !TOKEN()) { $('#setupBox').hidden=false; throw new Error('חסר URL או טוקן — פתח הגדרות'); }
+  loading(true);
+  try {
+    let res;
+    if (method==='GET') {
+      const u = new URL(API()); u.searchParams.set('action', action); u.searchParams.set('token', TOKEN()); for (const [k,v] of Object.entries(params)) u.searchParams.set(k, v);
+      res = await fetch(u, { redirect:'follow' });
+    } else {
+      res = await fetch(API(), { method:'POST', redirect:'follow', body: JSON.stringify({ action, token:TOKEN(), by:'web', ...params }) });
+    }
+    const data = await res.json();
+    if (!data.ok) { const e=new Error(data.error||'שגיאה'); e.data=data; throw e; }
+    return data;
+  } finally { loading(false); }
+}
+
+async function load(silent=false) {
+  try {
+    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; render(); } catch{} }
+    const d = await api('list');
+    state.bookings = d.bookings; state.summary = d.summary; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary}));
+    $('#setupBox').hidden = true;
+    render();
+    if (!silent) toast('עודכן ✓');
+  } catch (e) { toast(e.message, true); render(); }
+}
+async function loadHistory() {
+  try { const d = await api('history'); state.history = d.history; renderHistory(); } catch (e) { toast(e.message, true); }
+}
+
+/* ====== רינדור ====== */
+function cancelInfo(b) {
+  if (!b.freeCancelUntil) return { cls:'', txt:'🔒 בלי ביטול חינם', kind:'none' };
+  const d = daysUntil(b.freeCancelUntil);
+  if (d < 0) return { cls:'bad', txt:`🔒 ביטול נגמר ${fmtD(b.freeCancelUntil,true)}`, kind:'past' };
+  if (d === 0) return { cls:'bad', txt:'🔴 ביטול חינם נגמר היום!', kind:'soon' };
+  if (d <= 14) return { cls:'warn', txt:`⏳ ביטול חינם עוד ${d} ימים (${fmtD(b.freeCancelUntil,true)})`, kind:'soon' };
+  return { cls:'ok', txt:`🟢 ביטול חינם עד ${fmtD(b.freeCancelUntil,true)}`, kind:'open' };
+}
+
+function filtered() {
+  const f = state.filters, q = state.q.trim().toLowerCase();
+  let arr = state.bookings.filter(b => {
+    if (f.platform && b.platform !== f.platform) return false;
+    if (f.dest && b.destination !== f.dest) return false;
+    if (f.misc.has('breakfast') && !b.breakfast) return false;
+    const ci = cancelInfo(b).kind;
+    if (f.misc.has('cancelOpen') && !(ci==='open'||ci==='soon')) return false;
+    if (f.misc.has('cancelSoon') && ci!=='soon') return false;
+    if (f.misc.has('noCancel') && !(ci==='none'||ci==='past')) return false;
+    if (f.misc.has('unpaid') && b.paid) return false;
+    if (q && ![b.hotel,b.destination,b.confirmation,b.platform,b.account,b.roomType,b.notes].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const s = state.sort;
+  arr.sort((a,b) => {
+    if (s==='checkIn') return (a.checkIn||'9').localeCompare(b.checkIn||'9');
+    if (s==='cancel') return (a.freeCancelUntil||'9999').localeCompare(b.freeCancelUntil||'9999');
+    if (s==='priceDesc') return (Number(b.priceIls)||0)-(Number(a.priceIls)||0);
+    if (s==='priceAsc') return (Number(a.priceIls)||0)-(Number(b.priceIls)||0);
+    return (a.hotel||'').localeCompare(b.hotel||'');
+  });
+  return arr;
+}
+
+function render() {
+  const S = state.summary || { nights:0, totalIls:0, count:state.bookings.length, targetNights: Number(get(LS.target)||21) };
+  const target = S.targetNights || 21;
+  $('#sNights').textContent = `${S.nights} / ${target}`;
+  $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
+  $('#sCount').textContent = S.count;
+  $('#subtitle').textContent = `הטיול · ${target} לילות`;
+  const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
+
+  // chips
+  const platforms = [...new Set(state.bookings.map(b=>b.platform).filter(Boolean))];
+  const dests = [...new Set(state.bookings.map(b=>b.destination).filter(Boolean))];
+  const cp=$('#chipsPlatform'); cp.innerHTML='';
+  cp.append(el('button',{class:'chip'+(state.filters.platform?'':' on'), onclick:()=>{state.filters.platform='';render();}}, 'כל הפלטפורמות'));
+  platforms.forEach(p => cp.append(el('button',{class:'chip'+(state.filters.platform===p?' on':''), onclick:()=>{state.filters.platform=state.filters.platform===p?'':p;render();}}, el('i',{class:'dot',style:`background:${pc(p)}`}), p)));
+  const cd=$('#chipsDest'); cd.innerHTML=''; cd.hidden = dests.length<2;
+  cd.append(el('button',{class:'chip'+(state.filters.dest?'':' on'), onclick:()=>{state.filters.dest='';render();}}, 'כל היעדים'));
+  dests.forEach(d => cd.append(el('button',{class:'chip'+(state.filters.dest===d?' on':''), onclick:()=>{state.filters.dest=state.filters.dest===d?'':d;render();}}, '📍 '+d)));
+  document.querySelectorAll('#chipsMisc .chip').forEach(c => c.classList.toggle('on', state.filters.misc.has(c.dataset.f)));
+
+  const arr = filtered();
+  const list=$('#list'); list.innerHTML='';
+  const fn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
+  $('#countLine').textContent = arr.length ? `${arr.length} הזמנות · ${fn} לילות` : '';
+  if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות. לחץ + להוספה, או שלח לרוברט צילום מסך של ההזמנה.')); return; }
+  if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
+
+  let prev = null;
+  arr.forEach(b => {
+    if (state.sort==='checkIn' && prev && prev.checkOut && b.checkIn && !state.q && !state.filters.platform && !state.filters.dest && !state.filters.misc.size) {
+      const g = daysUntil(b.checkIn) - daysUntil(prev.checkOut);
+      if (g > 0) list.append(el('div',{class:'gap warn'}, `⚠️ ${g} ${g===1?'לילה':'לילות'} בלי מלון (${fmtD(prev.checkOut)} → ${fmtD(b.checkIn)})`));
+      else if (g < 0) list.append(el('div',{class:'gap bad'}, `⛔ חפיפה של ${-g} ${-g===1?'לילה':'לילות'} עם ${prev.hotel}`));
+    }
+    list.append(card(b)); prev = b;
+  });
+}
+
+function card(b) {
+  const ci = cancelInfo(b);
+  const c = el('div',{class:'card', style:`--pc:${pc(b.platform)}`, onclick:()=>openDetail(b)},
+    el('div',{class:'c-head'},
+      el('div',{}, el('div',{class:'c-title'}, b.hotel||'—'), el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')+(b.roomType?' · '+b.roomType:''))),
+      el('span',{class:'badge'}, b.platform||'?')),
+    el('div',{class:'c-dates'}, `${fmtD(b.checkIn)} ← ${fmtD(b.checkOut)}`, el('span',{class:'n'}, `${b.nights||'?'} לילות`)),
+    el('div',{class:'c-foot'},
+      el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? el('small',{}, money(b.price,b.currency)) : null),
+      el('div',{class:'tags'},
+        el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
+        el('span',{class:'tag '+ci.cls}, ci.txt),
+        b.paid ? el('span',{class:'tag info'},'💳 שולם') : null,
+        b.account ? el('span',{class:'tag'}, '👤 '+b.account) : null))
+  );
+  return c;
+}
+
+function renderHistory() {
+  const h=$('#hist'); h.innerHTML='';
+  if (!state.history.length) { h.append(el('div',{class:'empty'}, el('b',{},'🕓'), 'עוד אין היסטוריה.')); return; }
+  const cls = a => a.includes('נמחק')?'bad':a.includes('הוחלף')?'warn':a.includes('נוסף')?'ok':a.includes('שוחזר')?'info':'';
+  state.history.forEach(x => {
+    const canRestore = (x.action==='נמחק'||x.action==='הוחלף') && !state.bookings.some(b=>String(b.id)===String(x.id));
+    h.append(el('div',{class:'h-item'},
+      el('div',{class:'h-top'}, el('span',{class:'tag '+cls(x.action)}, x.action), el('time',{}, (x.ts||'').replace('T',' ').slice(0,16)+(x.by?' · '+x.by:''))),
+      el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · ${fmtD(x.checkIn)}←${fmtD(x.checkOut)} · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}`),
+      x.note ? el('div',{class:'h-note'}, x.note) : null,
+      canRestore ? el('button',{class:'restore', onclick:async()=>{ if(!confirm('לשחזר את ההזמנה הזו לרשימה הפעילה?')) return; try{ await api('restore',{id:x.id},'POST'); toast('שוחזר ✓'); await load(true); await loadHistory(); }catch(e){toast(e.message,true);} }}, '↩ שחזר לרשימה') : null
+    ));
+  });
+}
+
+/* ====== Bottom sheet ====== */
+function openSheet(node) { const b=$('#sheetBody'); b.innerHTML=''; b.append(node); $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0; }
+function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); }
+$('#sheetBg').onclick = closeSheet;
+
+function openDetail(b) {
+  const ci = cancelInfo(b);
+  const kv = (l,v,full) => el('div',{class:full?'full':''}, el('label',{},l), el('span',{}, v==null||v===''?'—':v));
+  openSheet(el('div',{},
+    el('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'}, el('h2',{}, b.hotel), el('span',{class:'badge', style:`--pc:${pc(b.platform)}`}, b.platform)),
+    el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')),
+    el('div',{class:'kv'},
+      kv('צ׳ק-אין', fmtD(b.checkIn,true)), kv('צ׳ק-אאוט', fmtD(b.checkOut,true)),
+      kv('לילות', b.nights), kv('סוג החדר', b.roomType),
+      kv('מחיר ששולם', money(b.price,b.currency)), kv('בשקלים', b.priceIls!==''?fmtN(b.priceIls)+' ₪':'—'),
+      kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':'לא / בתשלום במלון'),
+      el('div',{class:'full'}, el('label',{},'ביטול חינם'), el('span',{class:'tag '+ci.cls}, ci.txt)),
+      kv('מספר הזמנה', b.confirmation), kv('יוזר / חשבון', b.account),
+      b.notes ? kv('הערות', b.notes, true) : null,
+      b.link ? el('div',{class:'full'}, el('label',{},'קישור'), el('a',{href:b.link,target:'_blank',rel:'noopener'}, 'פתח את ההזמנה ↗')) : null,
+      kv('נוסף', (b.createdAt||'').replace('T',' ').slice(0,16)+(b.source?' · '+b.source:''), true)),
+    el('div',{class:'actions'},
+      el('button',{class:'btn primary', onclick:()=>openForm(b)}, '✏️ עריכה'),
+      el('button',{class:'btn', onclick:()=>openForm({...b, id:'', confirmation:'', createdAt:''}, b)}, '🔁 הזמנתי מחדש'),
+      el('button',{class:'btn danger full', onclick:async()=>{ const reason = prompt('למחוק את "'+b.hotel+'"? ההזמנה תישמר בהיסטוריה.\nסיבה (לא חובה):'); if (reason===null) return; try{ await api('delete',{id:b.id, note:reason},'POST'); toast('נמחק. נשמר בהיסטוריה'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '🗑 מחיקה'))
+  ));
+}
+
+function openForm(b={}, replacing=null) {
+  const isEdit = !!b.id;
+  const f = (label, name, type='text', extra={}) => el('div',{class:'f'+(extra.full?' full':'')}, el('label',{},label), Object.assign(el('input',{type, name, value:b[name]??'', ...(extra.attrs||{})}), {}));
+  const platforms = ['Booking','Agoda','Expedia','Hotels.com','Trip.com','Airbnb','ישירות מול המלון','אחר'];
+  const platSel = el('select',{name:'platform'}, el('option',{value:''},'בחר…'), ...platforms.map(p=>el('option',{value:p, selected:b.platform===p}, p)));
+  if (b.platform && !platforms.includes(b.platform)) platSel.append(el('option',{value:b.platform,selected:true},b.platform));
+  const curSel = el('select',{name:'currency'}, ...CURRENCIES.map(c=>el('option',{value:c, selected:(b.currency||'ILS')===c}, c)));
+  let breakfast = !!b.breakfast, paid = !!b.paid;
+  const sw = (label, getv, setv) => { const s=el('div',{class:'switch'+(getv()?' on':'')}); const t=el('div',{class:'toggle', onclick:()=>{setv(!getv()); s.classList.toggle('on',getv());}}, el('b',{},label), s); return t; };
+  const form = el('form',{onsubmit: async ev => {
+    ev.preventDefault();
+    const fd = new FormData(form); const booking = Object.fromEntries(fd.entries());
+    booking.breakfast = breakfast; booking.paid = paid;
+    if (!booking.hotel.trim()) return toast('חסר שם מלון', true);
+    if (booking.checkIn && booking.checkOut && booking.checkOut <= booking.checkIn) return toast('צ׳ק-אאוט חייב להיות אחרי צ׳ק-אין', true);
+    const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
+    try {
+      if (isEdit) { await api('update',{id:b.id, booking},'POST'); toast('עודכן ✓'); }
+      else if (replacing) { await api('add',{booking, replaceId:replacing.id, note:'הזמנה מחדש'},'POST'); toast('הוחלף. הישנה בהיסטוריה ✓'); }
+      else { await api('add',{booking},'POST'); toast('נוסף ✓'); }
+      if (booking.account) set(LS.account, booking.account);
+      closeSheet(); await load(true);
+    } catch(e) { toast(e.message,true); } finally { btn.disabled=false; }
+  }},
+    el('h2',{}, isEdit?'עריכת הזמנה':replacing?'הזמנה מחדש':'הזמנה חדשה'),
+    replacing ? el('div',{class:'replace-note'}, `🔁 ההזמנה הישנה (${replacing.platform} · ${money(replacing.price,replacing.currency)}) תימחק מהרשימה ותישמר בהיסטוריה.`) : null,
+    f('שם המלון *','hotel','text',{full:true, attrs:{required:true, autofocus:!isEdit}}),
+    el('div',{class:'row'}, f('יעד (עיר / אי)','destination'), el('div',{class:'f'}, el('label',{},'פלטפורמה'), platSel)),
+    el('div',{class:'row'}, f('צ׳ק-אין','checkIn','date'), f('צ׳ק-אאוט','checkOut','date')),
+    el('div',{class:'row'}, f('מחיר ששולם','price','number',{attrs:{step:'0.01',inputmode:'decimal'}}), el('div',{class:'f'}, el('label',{},'מטבע'), curSel)),
+    el('div',{class:'row'}, f('בשקלים (ריק = חישוב אוטומטי)','priceIls','number',{attrs:{step:'1',inputmode:'numeric'}}), f('ביטול חינם עד','freeCancelUntil','date')),
+    sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
+    sw('💳 שולם מראש', ()=>paid, v=>paid=v),
+    el('div',{class:'row'}, f('סוג החדר','roomType'), f('מספר הזמנה','confirmation')),
+    el('div',{class:'row'}, f('יוזר / חשבון שהזמין','account','text',{attrs:{value:b.account??get(LS.account), list:'accounts'}}), f('קישור להזמנה','link','url')),
+    el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, b.notes||'')),
+    el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'submit',class:'btn primary'}, isEdit?'שמירה':'הוספה'))
+  );
+  form.querySelector('[name=link]').value = b.link||'';
+  if (!isEdit && !b.account) form.querySelector('[name=account]').value = get(LS.account);
+  // חישוב לילות חי
+  const nightsHint = el('div',{class:'hint'}); form.querySelector('[name=checkOut]').parentElement.append(nightsHint);
+  const upd = () => { const a=form.checkIn.value,c=form.checkOut.value; const n=a&&c?Math.round((new Date(c)-new Date(a))/864e5):0; nightsHint.textContent = n>0?`${n} לילות`:''; };
+  form.checkIn.oninput = form.checkOut.oninput = upd; upd();
+  openSheet(form);
+}
+
+function openSettings() {
+  const inp = (l,k,ph,type='text') => el('div',{class:'f'}, el('label',{},l), el('input',{type, id:'st_'+k, value:get(k), placeholder:ph, autocomplete:'off'}));
+  const box = el('div',{},
+    el('h2',{},'הגדרות'),
+    inp('כתובת ה-Web App (Apps Script)', LS.api, 'https://script.google.com/macros/s/…/exec','url'),
+    inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
+    inp('יעד לילות לטיול', LS.target, '21','number'),
+    el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד. הגיליון: ', el('a',{href:'https://docs.google.com/spreadsheets/d/13CJctztFH6jSPKJfp5QjDJd9n8IR6_j_tfdsGyvFhLg/edit',target:'_blank'},'מעקב הזמנות מלונות ↗')),
+    el('div',{class:'actions'},
+      el('button',{class:'btn', onclick:async()=>{ save(); try{ const u=new URL(API()); u.searchParams.set('action','ping'); const r=await (await fetch(u)).json(); if(r.ok){ await api('list'); toast('החיבור תקין ✓'); } else toast('אין תגובה תקינה',true);}catch(e){toast('נכשל: '+e.message,true);} }}, '🔌 בדיקת חיבור'),
+      el('button',{class:'btn primary', onclick:async()=>{ save(); closeSheet(); const t=Number(get(LS.target)||21); try{ await api('setTarget',{nights:t},'POST'); }catch{} await load(); }}, 'שמירה'))
+  );
+  const save = () => { set(LS.api, $('#st_'+LS.api).value.trim()); set(LS.token, $('#st_'+LS.token).value.trim()); set(LS.target, $('#st_'+LS.target).value.trim()||'21'); };
+  openSheet(box);
+}
+
+/* ====== אירועים ====== */
+$('#fab').onclick = () => openForm();
+$('#btnRefresh').onclick = () => { load(); if (state.view==='history') loadHistory(); };
+$('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings;
+$('#q').oninput = e => { state.q = e.target.value; $('#qClear').style.display = state.q?'':'none'; render(); };
+$('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').style.display='none'; render(); };
+$('#sort').onchange = e => { state.sort=e.target.value; render(); };
+document.querySelectorAll('#chipsMisc .chip').forEach(c => c.onclick = () => { const k=c.dataset.f; state.filters.misc.has(k)?state.filters.misc.delete(k):state.filters.misc.add(k); render(); });
+document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===t));
+  state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = state.view!=='list';
+  if (state.view==='history') loadHistory();
+});
+// גרירת ה-sheet למטה סוגרת
+let sy=null; $('#sheet').addEventListener('touchstart',e=>{ if($('#sheet').scrollTop===0) sy=e.touches[0].clientY; },{passive:true});
+$('#sheet').addEventListener('touchend',e=>{ if(sy!==null && e.changedTouches[0].clientY-sy>90) closeSheet(); sy=null; });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && API() && TOKEN()) load(true); });
+
+if (!API() || !TOKEN()) { $('#setupBox').hidden=false; render(); } else load(true);
+</script>
+</body>
+</html>
