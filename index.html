@@ -17,6 +17,7 @@
   --radius:16px;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(16,24,40,.06);
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Heebo,-apple-system,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0}
@@ -24,34 +25,50 @@ a{color:var(--brand)}
 .app{max-width:640px;margin:0 auto;min-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 
 /* header */
-.top{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f766e,#115e59);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;border-radius:0 0 22px 22px;box-shadow:0 6px 20px rgba(15,118,110,.25)}
-.top-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top{background:linear-gradient(180deg,#0f766e,#115e59);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;border-radius:0 0 22px 22px;box-shadow:0 6px 20px rgba(15,118,110,.25)}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
 .top h1{font-size:20px;font-weight:800;margin:0;letter-spacing:-.2px}
-.top h1 small{font-weight:500;opacity:.85;font-size:13px;display:block}
-.icon-btn{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;font-size:18px}
+.icon-btn{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;font-size:18px}
 .icon-btn:active{background:rgba(255,255,255,.28)}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-.stat{background:rgba(255,255,255,.12);border-radius:14px;padding:8px 4px;text-align:center}
-.stat b{display:block;font-size:17px;font-weight:800;line-height:1.1;white-space:nowrap}
-.stat span{font-size:11px;opacity:.85;white-space:nowrap}
-.bar{height:6px;background:rgba(255,255,255,.2);border-radius:99px;margin-top:10px;overflow:hidden}
-.bar i{display:block;height:100%;background:#a7f3d0;border-radius:99px;transition:width .4s}
+.hero{display:flex;align-items:baseline;gap:8px;margin-top:12px;font-variant-numeric:tabular-nums}
+.hero b{font-size:44px;font-weight:800;line-height:1;letter-spacing:-1px}
+.hero span{font-size:14px;font-weight:500;opacity:.85}
+.hero #sTarget{font-weight:700}
+.bar{height:6px;background:rgba(255,255,255,.2);border-radius:99px;margin-top:8px;overflow:hidden}
+.bar i{display:block;width:0;height:100%;background:#a7f3d0;border-radius:99px;transition:width .4s}
 .bar i.over{background:#fca5a5}
+.stat-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:13px;opacity:.9;white-space:nowrap;font-variant-numeric:tabular-nums}
+.stat-row b{font-size:15px;font-weight:800}
+.stat-row .sep{opacity:.5}
 
 /* filters */
-.tools{padding:12px 16px 4px}
-.search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
-.search input{flex:1;border:0;outline:0;background:none;font-size:16px}
-.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tools{padding:12px 16px 0}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 12px;min-height:48px;box-shadow:var(--shadow)}
+.search input{flex:1;min-width:0;min-height:46px;border:0;outline:0;background:none;font-size:16px}
+.search .clear{flex:0 0 44px;width:44px;height:44px;margin-inline-end:-8px;display:grid;place-items:center;color:var(--muted);font-size:16px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:8px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent)}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;padding:7px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:13.5px;font-weight:500;color:#374151;white-space:nowrap}
+.chips::after{content:"";flex:0 0 8px}
+.chip{flex:0 0 auto;min-height:44px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:13.5px;font-weight:500;color:#374151;white-space:nowrap;scroll-snap-align:end}
 .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
-.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:6px;vertical-align:1px}
-.sortrow{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 0;font-size:13px;color:var(--muted)}
-.sortrow select{border:0;background:none;color:var(--brand);font-weight:600;padding:4px 0}
+.chip.filter{font-weight:700}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+.chip .x{font-size:12px;opacity:.8}
+.chip .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--brand);color:#fff;font-size:12px;font-weight:800;display:inline-grid;place-items:center}
+.chip.on .cnt{background:#fff;color:var(--brand)}
+.count-line{font-size:12.5px;color:var(--muted);padding:0 4px;font-variant-numeric:tabular-nums}
+#viewList.is-empty .tools,#viewList.is-empty .chips{display:none}
+
+/* filter sheet */
+.fgroup{margin-top:16px}
+.fgroup-t{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.chipgrid{display:flex;flex-wrap:wrap;gap:8px}
+.chipgrid .chip{background:#f1f5f9;border-color:transparent;scroll-snap-align:none}
+.chipgrid .chip.on{background:var(--brand)}
+.sheet-foot{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:16px;margin-bottom:calc(-24px - env(safe-area-inset-bottom));padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(255,255,255,0),var(--card) 12px)}
 
 /* list */
-.list{padding:8px 16px 0;display:flex;flex-direction:column;gap:10px}
+.list{padding:8px 16px 0;display:flex;flex-direction:column;gap:12px}
 .gap{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:0 6px}
 .gap::before,.gap::after{content:"";flex:1;border-top:1px dashed var(--line)}
 .gap.warn{color:var(--warn)}.gap.bad{color:var(--bad)}
@@ -70,8 +87,10 @@ a{color:var(--brand)}
 .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .tag{font-size:12px;padding:4px 8px;border-radius:8px;background:#f1f5f9;color:#334155;font-weight:600;white-space:nowrap}
 .tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.info{background:var(--info-soft);color:var(--info)}
-.empty{text-align:center;color:var(--muted);padding:48px 16px;font-size:15px}
+.empty{text-align:center;color:var(--muted);padding:48px 16px 24px;font-size:15px}
 .empty b{display:block;font-size:40px;margin-bottom:8px}
+.empty .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;margin-top:16px}
+.empty .hint{margin-top:12px}
 
 /* fab */
 .fab{position:fixed;inset-inline-start:50%;transform:translateX(50%);bottom:calc(20px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;background:var(--brand);color:#fff;font-size:32px;font-weight:300;display:grid;place-items:center;box-shadow:0 10px 24px rgba(15,118,110,.4);z-index:15}
@@ -82,9 +101,12 @@ a{color:var(--brand)}
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
 .sheet-bg.open{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);border-radius:22px 22px 0 0;max-height:92dvh;overflow:auto;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);padding:8px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);border-radius:22px 22px 0 0;max-height:92dvh;overflow:auto;overscroll-behavior:contain;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);padding:0 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 .sheet.open{transform:none}
-.handle{width:40px;height:5px;border-radius:99px;background:#d1d5db;margin:4px auto 12px}
+.sheet-top{position:relative;height:44px;display:flex;justify-content:center;align-items:flex-start;padding-top:8px}
+.handle{width:40px;height:5px;border-radius:99px;background:#d1d5db}
+.sheet-close{position:absolute;top:0;inset-inline-end:-8px;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:var(--muted);font-size:18px}
+.sheet-close:active{background:#f1f5f9}
 .sheet h2{font-size:18px;margin:0 0 10px;font-weight:800}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:8px}
 .kv div{background:#f8fafc;border-radius:12px;padding:8px 10px}
@@ -119,14 +141,21 @@ form textarea{min-height:64px;resize:vertical}
 .h-item .h-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
 .h-item time{font-size:12px;color:var(--muted)}
 .h-item .h-note{color:var(--muted);font-size:12.5px;margin-top:4px;word-break:break-word}
-.h-item .restore{font-size:12.5px;color:var(--brand);font-weight:700;margin-top:6px}
+.h-actions{display:flex;gap:16px;margin-top:2px}
+.restore{min-height:44px;display:inline-flex;align-items:center;font-size:12.5px;color:var(--brand);font-weight:700}
+.restore.danger{color:var(--bad)}
 
-.alert-line{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;background:rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;line-height:1.35}
-.alert-line.off{opacity:.8}
-.alert-line b{font-weight:700}
-.tabs{display:flex;gap:4px;background:rgba(255,255,255,.12);border-radius:12px;padding:3px;margin-top:12px}
-.tabs button{flex:1;padding:7px 4px;border-radius:10px;color:#fff;font-weight:600;font-size:13px;opacity:.8}
-.tabs button.on{background:#fff;color:var(--brand);opacity:1}
+.alert-line{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;min-width:0}
+.pill{flex:0 0 auto;position:relative;min-height:36px;line-height:36px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;font-weight:600;white-space:nowrap}
+button.pill::before{content:"";position:absolute;inset:-4px}
+.alert-line.off .pill.status{opacity:.8}
+.pill.next{flex:1;min-width:0;display:flex;align-items:center;gap:4px;font-weight:700}
+.pill.next .h{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;direction:ltr;unicode-bidi:isolate;text-align:right}
+.pill.due-bad{color:#fca5a5}.pill.due-warn{color:#fde68a}.pill.due-ok{color:#a7f3d0}
+.tabbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 16px;padding-top:calc(8px + env(safe-area-inset-top))}
+.tabs{display:flex;gap:4px;background:#e5e7eb;border-radius:12px;padding:3px}
+.tabs button{flex:1;min-height:44px;padding:0 4px;border-radius:10px;color:#4b5563;font-weight:600;font-size:14px}
+.tabs button.on{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.06),0 2px 6px rgba(16,24,40,.1)}
 
 .toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
@@ -135,6 +164,7 @@ form textarea{min-height:64px;resize:vertical}
 .loading.on{display:block}
 @keyframes ld{to{background-position:-200% 0}}
 .hint{font-size:12.5px;color:var(--muted);margin-top:4px}
+.textbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-top:4px;color:var(--brand);font-weight:700;font-size:14px}
 .setup{margin:24px 16px;background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
 .setup h3{margin:0 0 8px}
 </style>
@@ -144,42 +174,31 @@ form textarea{min-height:64px;resize:vertical}
 <div class="app">
   <header class="top">
     <div class="top-row">
-      <h1>🏨 הזמנות מלונות <small id="subtitle">הטיול · 21 לילות</small></h1>
-      <div style="display:flex;gap:6px">
-        <button class="icon-btn" id="btnRefresh" title="רענון">⟳</button>
-        <button class="icon-btn" id="btnSettings" title="הגדרות">⚙︎</button>
-      </div>
+      <h1>🏨 הזמנות מלונות</h1>
+      <button class="icon-btn" id="btnSettings" type="button" title="הגדרות" aria-label="הגדרות">⚙︎</button>
     </div>
-    <div class="stats">
-      <div class="stat"><b id="sNights">–</b><span>לילות סגורים</span></div>
-      <div class="stat"><b id="sTotal">–</b><span>סה״כ ₪</span></div>
-      <div class="stat"><b id="sAvg">–</b><span>ממוצע ללילה</span></div>
-      <div class="stat"><b id="sCount">–</b><span>מלונות</span></div>
+    <div class="hero"><b id="sNights">–</b><span>מתוך <span id="sTarget">21</span> לילות</span></div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="stat-row">
+      <span><b id="sTotal">–</b> סה״כ</span><span class="sep">·</span>
+      <span><b id="sAvg">–</b> ללילה</span><span class="sep">·</span>
+      <span><b id="sCount">–</b> מלונות</span>
     </div>
-    <div class="bar"><i id="bar" style="width:0%"></i></div>
-    <div class="alert-line" id="alertLine"></div>
-    <div class="tabs">
-      <button class="on" data-view="list">הזמנות</button>
-      <button data-view="archive">ארכיון</button>
-      <button data-view="history">היסטוריה</button>
-    </div>
+    <div class="alert-line" id="alertLine" hidden></div>
   </header>
+  <div class="tabbar">
+    <div class="tabs">
+      <button type="button" class="on" data-view="list">הזמנות</button>
+      <button type="button" data-view="archive">ארכיון</button>
+      <button type="button" data-view="history">היסטוריה</button>
+    </div>
+  </div>
 
   <section id="viewList">
     <div class="tools">
-      <div class="search">🔎<input id="q" type="search" placeholder="חיפוש מלון / יעד / מספר הזמנה" autocomplete="off"><button id="qClear" style="color:var(--muted);display:none">✕</button></div>
+      <div class="search">🔎<input id="q" type="search" placeholder="חיפוש מלון / יעד / מספר הזמנה" autocomplete="off"><button id="qClear" class="clear" type="button" aria-label="ניקוי חיפוש" hidden>✕</button></div>
     </div>
-    <div class="chips" id="chipsPlatform"></div>
-    <div class="chips" id="chipsUser" style="padding-top:2px"></div>
-    <div class="chips" id="chipsDest" style="padding-top:2px"></div>
-    <div class="chips" id="chipsMisc" style="padding-top:2px">
-      <button class="chip" data-f="breakfast">☕ עם ארוחת בוקר</button>
-      <button class="chip" data-f="cancelOpen">🟢 ביטול חינם פתוח</button>
-      <button class="chip" data-f="cancelSoon">⏳ ביטול נגמר בקרוב</button>
-      <button class="chip" data-f="noCancel">🔒 בלי ביטול</button>
-      <button class="chip" data-f="unpaid">💳 לא שולם</button>
-    </div>
-    <div class="sortrow"><span id="countLine"></span><label>מיון: <select id="sort"><option value="checkIn">תאריך הגעה</option><option value="cancel">מועד ביטול</option><option value="priceDesc">מחיר (יורד)</option><option value="priceAsc">מחיר (עולה)</option><option value="hotel">שם מלון</option></select></label></div>
+    <div class="chips" id="chips"></div>
     <div class="list" id="list"></div>
   </section>
 
@@ -202,7 +221,7 @@ form textarea{min-height:64px;resize:vertical}
 <button class="fab" id="fab" title="הוספת הזמנה">+</button>
 
 <div class="sheet-bg" id="sheetBg"></div>
-<div class="sheet" id="sheet"><div class="handle"></div><div id="sheetBody"></div></div>
+<div class="sheet" id="sheet"><div class="sheet-top"><div class="handle"></div><button class="sheet-close" id="sheetClose" type="button" aria-label="סגירה">✕</button></div><div id="sheetBody"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -220,6 +239,10 @@ const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
 const USERS = ['צחי','שירן']; // יוזרים קבועים לבחירה מהירה (אפשר להקליד גם אחר)
+const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם']];
+const MISC_LABEL = Object.fromEntries(MISC);
+const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
+const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
 
 let state = { bookings:[], summary:null, reminders:null, history:[], archive:[], filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
@@ -236,6 +259,8 @@ const money = (n,cur) => (n===''||n==null) ? '—' : `${fmtN(n)} ${SYM[cur]||cur
 const pc = p => PLATFORM_COLORS[p] || '#64748b';
 let toastT; const toast = (m, err=false) => { const t=$('#toast'); t.textContent=m; t.className='toast show'+(err?' err':''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast', err?4000:2200); };
 const loading = on => $('#loading').classList.toggle('on', !!on);
+const toggleMisc = k => { state.filters.misc.has(k) ? state.filters.misc.delete(k) : state.filters.misc.add(k); };
+const activeFilterCount = () => (state.filters.platform?1:0)+(state.filters.user?1:0)+(state.filters.dest?1:0)+state.filters.misc.size;
 
 /* ====== API ====== */
 async function api(action, params={}, method='GET') {
@@ -311,42 +336,42 @@ function filtered() {
 function render() {
   const S = state.summary || { nights:0, totalIls:0, count:state.bookings.length, targetNights: Number(get(LS.target)||21) };
   const target = S.targetNights || 21;
-  $('#sNights').textContent = `${S.nights} / ${target}`;
+  $('#sNights').textContent = S.nights;
+  $('#sTarget').textContent = target;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
   $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
   $('#sCount').textContent = S.count;
-  $('#subtitle').textContent = `הטיול · ${target} לילות`;
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
-  // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר
-  const R = state.reminders; const al=$('#alertLine'); al.innerHTML='';
+  // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר (מוסתרת כשהתזכורות פעילות ואין ביטול קרוב)
+  const R = state.reminders, active = !!(R && R.active); const al=$('#alertLine'); al.innerHTML=''; al.classList.toggle('off', !active);
   const upcoming = state.bookings.filter(b=>b.freeCancelUntil && daysUntil(b.freeCancelUntil)>=0).sort((a,b)=>a.freeCancelUntil.localeCompare(b.freeCancelUntil));
   const next = upcoming[0];
-  if (R && R.active) al.append(el('span',{}, '🔔 '), el('span',{}, el('b',{},'תזכורות טלגרם פעילות'), ` (${R.days.join('/')} ימים לפני, 09:00)`));
-  else { al.classList.add('off'); al.append(el('span',{}, '🔕 '), el('span',{}, 'תזכורות טלגרם לא מוגדרות. ', el('a',{href:'#',style:'color:#a7f3d0',onclick:e=>{e.preventDefault();openSettings();}},'איך מפעילים?'))); }
-  if (next) { const d=daysUntil(next.freeCancelUntil); al.append(el('span',{style:'margin-inline-start:auto;white-space:nowrap;font-weight:700;color:'+(d<=3?'#fca5a5':d<=14?'#fde68a':'#a7f3d0')}, d===0?`⏳ היום: ${next.hotel}`:`⏳ ${next.hotel.split(' ').slice(0,2).join(' ')} · עוד ${d} ימים`)); }
+  al.hidden = active && !next;
+  if (!al.hidden) {
+    al.append(active ? el('span',{class:'pill status'}, '🔔 תזכורות פעילות') : el('button',{type:'button', class:'pill status', onclick:openSettings}, '🔕 תזכורות כבויות'));
+    if (next) { const d=daysUntil(next.freeCancelUntil); al.append(el('span',{class:'pill next '+(d<=3?'due-bad':d<=14?'due-warn':'due-ok'), title:next.hotel}, d===0?'⏳ היום:':'⏳', el('span',{class:'h'}, next.hotel), d===0?null:`· עוד ${d} ימים`)); }
+  }
 
-  // chips
-  const platforms = [...new Set(state.bookings.map(b=>b.platform).filter(Boolean))];
-  const dests = [...new Set(state.bookings.map(b=>b.destination).filter(Boolean))];
-  const cp=$('#chipsPlatform'); cp.innerHTML='';
-  cp.append(el('button',{class:'chip'+(state.filters.platform?'':' on'), onclick:()=>{state.filters.platform='';render();}}, 'כל הפלטפורמות'));
-  platforms.forEach(p => cp.append(el('button',{class:'chip'+(state.filters.platform===p?' on':''), onclick:()=>{state.filters.platform=state.filters.platform===p?'':p;render();}}, el('i',{class:'dot',style:`background:${pc(p)}`}), p)));
-  const users = [...new Set(state.bookings.map(b=>b.account).filter(Boolean))];
-  const cu=$('#chipsUser'); cu.innerHTML=''; cu.hidden = users.length<1;
-  cu.append(el('button',{class:'chip'+(state.filters.user?'':' on'), onclick:()=>{state.filters.user='';render();}}, 'כל היוזרים'));
-  users.forEach(u => cu.append(el('button',{class:'chip'+(state.filters.user===u?' on':''), onclick:()=>{state.filters.user=state.filters.user===u?'':u;render();}}, '👤 '+u)));
-  const cd=$('#chipsDest'); cd.innerHTML=''; cd.hidden = dests.length<2;
-  cd.append(el('button',{class:'chip'+(state.filters.dest?'':' on'), onclick:()=>{state.filters.dest='';render();}}, 'כל היעדים'));
-  dests.forEach(d => cd.append(el('button',{class:'chip'+(state.filters.dest===d?' on':''), onclick:()=>{state.filters.dest=state.filters.dest===d?'':d;render();}}, '📍 '+d)));
-  document.querySelectorAll('#chipsMisc .chip').forEach(c => c.classList.toggle('on', state.filters.misc.has(c.dataset.f)));
+  // שורת צ'יפים: כפתור סינון (עם מונה) + פילטרים פעילים (ניתנים להסרה) + שני מתגים מהירים
+  const f = state.filters, row=$('#chips'); row.innerHTML='';
+  const nAct = activeFilterCount();
+  row.append(el('button',{type:'button', class:'chip filter'+(nAct?' on':''), onclick:openFilters}, 'סינון', nAct ? el('span',{class:'cnt'}, nAct) : null, el('span',{class:'x'},'▾')));
+  const chipX = (off, ...label) => el('button',{type:'button', class:'chip on', onclick:()=>{off();render();}}, ...label, el('span',{class:'x'},'✕'));
+  if (f.platform) row.append(chipX(()=>f.platform='', el('i',{class:'dot',style:`background:${pc(f.platform)}`}), f.platform));
+  if (f.user) row.append(chipX(()=>f.user='', '👤 '+f.user));
+  if (f.dest) row.append(chipX(()=>f.dest='', '📍 '+f.dest));
+  for (const k of f.misc) if (!QUICK.includes(k)) row.append(chipX(()=>f.misc.delete(k), MISC_LABEL[k]));
+  row.append(el('button',{type:'button', class:'chip'+(f.misc.has('cancelSoon')?' on':''), onclick:()=>{toggleMisc('cancelSoon');render();}}, '⏳ ביטול בקרוב'));
+  row.append(el('button',{type:'button', class:'chip'+(f.misc.has('unpaid')?' on':''), onclick:()=>{toggleMisc('unpaid');render();}}, '💳 לא שולם'));
 
   const arr = filtered();
   const list=$('#list'); list.innerHTML='';
+  $('#viewList').classList.toggle('is-empty', !state.bookings.length);
+  if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות.', el('div',{}, el('button',{type:'button', class:'btn primary', onclick:()=>openForm()}, '➕ הוספת הזמנה ראשונה')), el('div',{class:'hint'}, 'או שלח לרוברט צילום מסך של ההזמנה'))); return; }
+  if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
   const fn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
   const fils = arr.reduce((n,b)=>n+(Number(b.priceIls)||0),0);
-  $('#countLine').textContent = arr.length ? `${arr.length} הזמנות · ${fn} לילות · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}` : '';
-  if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות. לחץ + להוספה, או שלח לרוברט צילום מסך של ההזמנה.')); return; }
-  if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
+  list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
 
   let prev = null;
   arr.forEach(b => {
@@ -357,6 +382,30 @@ function render() {
     }
     list.append(card(b)); prev = b;
   });
+}
+
+function openFilters() {
+  const f = state.filters;
+  const uniq = k => [...new Set(state.bookings.map(b=>b[k]).filter(Boolean))];
+  const platforms = uniq('platform'), users = uniq('account'), dests = uniq('destination');
+  const syncs = [];
+  const chip = (label, isOn, act) => { const b = el('button',{type:'button', class:'chip'}, label); b.onclick = () => { act(); render(); sync(); }; syncs.push(()=>b.classList.toggle('on', isOn())); return b; };
+  const group = (title, chips) => el('div',{class:'fgroup'}, el('div',{class:'fgroup-t'}, title), el('div',{class:'chipgrid'}, ...chips));
+  const showBtn = el('button',{type:'button', class:'btn primary', onclick:closeSheet});
+  const sync = () => { syncs.forEach(s=>s()); const c = filtered().length; showBtn.textContent = c===1 ? 'הצג הזמנה אחת' : `הצג ${c} הזמנות`; };
+  const box = el('div',{},
+    el('h2',{}, 'סינון ומיון'),
+    platforms.length>=2 ? group('פלטפורמה', platforms.map(p => chip([el('i',{class:'dot',style:`background:${pc(p)}`}), p], ()=>f.platform===p, ()=>f.platform = f.platform===p?'':p))) : null,
+    users.length>=2 ? group('יוזר', users.map(u => chip('👤 '+u, ()=>f.user===u, ()=>f.user = f.user===u?'':u))) : null,
+    dests.length>=2 ? group('יעד', dests.map(d => chip('📍 '+d, ()=>f.dest===d, ()=>f.dest = f.dest===d?'':d))) : null,
+    group('עוד', MISC.map(([k,l]) => chip(l, ()=>f.misc.has(k), ()=>toggleMisc(k)))),
+    group('מיון', SORTS.map(([k,l]) => chip(l, ()=>state.sort===k, ()=>state.sort=k))),
+    el('div',{class:'sheet-foot'},
+      el('button',{type:'button', class:'btn ghost', onclick:()=>{ f.platform=''; f.user=''; f.dest=''; f.misc.clear(); state.sort='checkIn'; render(); sync(); }}, 'נקה הכל'),
+      showBtn)
+  );
+  sync();
+  openSheet(box);
 }
 
 function card(b) {
@@ -401,17 +450,17 @@ function renderArchive() {
       el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · 📍${x.destination||''}`),
       el('div',{class:'h-note'}, `${fmtD(x.checkIn,true)} ← ${fmtD(x.checkOut,true)} · ${x.nights||'?'} לילות · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}${x.breakfast?' · ☕':''}${x.confirmation?' · #'+x.confirmation:''}`),
       x.archiveNote ? el('div',{class:'h-note'}, x.archiveNote) : null,
-      el('div',{style:'display:flex;gap:14px;margin-top:8px'},
-        active ? null : el('button',{class:'restore', onclick:async()=>{ if(!confirm('לשחזר את "'+x.hotel+'" לרשימה הפעילה?')) return; try{ await api('restore',{id:x.id},'POST'); toast('שוחזר ✓'); await load(true); await loadArchive(); }catch(e){toast(e.message,true);} }}, '↩ שחזר לרשימה'),
-        el('button',{class:'restore', style:'color:var(--bad)', onclick:async()=>{ if(!confirm('למחוק לצמיתות את "'+x.hotel+'" מהארכיון? (יישאר רק רישום ביומן ההיסטוריה)')) return; try{ await api('purge',{id:x.id},'POST'); toast('נמחק לצמיתות'); await loadArchive(); }catch(e){toast(e.message,true);} }}, '🗑 מחק לצמיתות'))
+      el('div',{class:'h-actions'},
+        active ? null : el('button',{type:'button', class:'restore', onclick:async()=>{ if(!confirm('לשחזר את "'+x.hotel+'" לרשימה הפעילה?')) return; try{ await api('restore',{id:x.id},'POST'); toast('שוחזר ✓'); await load(true); await loadArchive(); }catch(e){toast(e.message,true);} }}, '↩ שחזר לרשימה'),
+        el('button',{type:'button', class:'restore danger', onclick:async()=>{ if(!confirm('למחוק לצמיתות את "'+x.hotel+'" מהארכיון? (יישאר רק רישום ביומן ההיסטוריה)')) return; try{ await api('purge',{id:x.id},'POST'); toast('נמחק לצמיתות'); await loadArchive(); }catch(e){toast(e.message,true);} }}, '🗑 מחק לצמיתות'))
     ));
   });
 }
 
 /* ====== Bottom sheet ====== */
-function openSheet(node) { const b=$('#sheetBody'); b.innerHTML=''; b.append(node); $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0; }
-function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); }
-$('#sheetBg').onclick = closeSheet;
+function openSheet(node) { const b=$('#sheetBody'); b.innerHTML=''; b.append(node); $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0; document.body.style.overflow='hidden'; }
+function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); document.body.style.overflow=''; }
+$('#sheetBg').onclick = closeSheet; $('#sheetClose').onclick = closeSheet;
 
 function openDetail(b) {
   const ci = cancelInfo(b);
@@ -496,6 +545,7 @@ function openSettings() {
       (state.reminders&&state.reminders.active) ? `פעילות ✓ נשלחות ${state.reminders.days.join('/')} ימים לפני, בשעה 09:00.` :
       'לא מוגדרות. בעורך Apps Script של הגיליון: ⚙ הגדרות הפרויקט → Script properties → להוסיף TELEGRAM_BOT_TOKEN ו-TELEGRAM_CHAT_ID (431692318), ואז להריץ installTriggers() ו-sendTestReminder(). ברירת מחדל: 14, 7, 3, 1, 0 ימים לפני (REMINDER_DAYS).')),
     el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד.', SHEET_URL ? el('a',{href:SHEET_URL,target:'_blank',style:'margin-inline-start:6px'},'פתח את הגיליון ↗') : null),
+    el('button',{type:'button', class:'textbtn', onclick:()=>{ closeSheet(); load(); if (state.view==='history') loadHistory(); if (state.view==='archive') loadArchive(); }}, '⟳ רענון'),
     el('div',{class:'actions'},
       el('button',{class:'btn', onclick:async()=>{ save(); try{ const u=new URL(API()); u.searchParams.set('action','ping'); const r=await (await fetch(u)).json(); if(r.ok){ await api('list'); toast('החיבור תקין ✓'); } else toast('אין תגובה תקינה',true);}catch(e){toast('נכשל: '+e.message,true);} }}, '🔌 בדיקת חיבור'),
       el('button',{class:'btn primary', onclick:async()=>{ save(); closeSheet(); const t=Number(get(LS.target)||21); try{ await api('setTarget',{nights:t},'POST'); }catch{} await load(); }}, 'שמירה'))
@@ -506,12 +556,9 @@ function openSettings() {
 
 /* ====== אירועים ====== */
 $('#fab').onclick = () => openForm();
-$('#btnRefresh').onclick = () => { load(); if (state.view==='history') loadHistory(); if (state.view==='archive') loadArchive(); };
 $('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings;
-$('#q').oninput = e => { state.q = e.target.value; $('#qClear').style.display = state.q?'':'none'; render(); };
-$('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').style.display='none'; render(); };
-$('#sort').onchange = e => { state.sort=e.target.value; render(); };
-document.querySelectorAll('#chipsMisc .chip').forEach(c => c.onclick = () => { const k=c.dataset.f; state.filters.misc.has(k)?state.filters.misc.delete(k):state.filters.misc.add(k); render(); });
+$('#q').oninput = e => { state.q = e.target.value; $('#qClear').hidden = !state.q; render(); };
+$('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').hidden = true; render(); };
 document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===t));
   state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewArchive').hidden = state.view!=='archive'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = state.view!=='list';
