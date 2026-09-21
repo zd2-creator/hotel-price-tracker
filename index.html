@@ -299,7 +299,7 @@ const WD = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const fmtD = (iso, withYear=false) => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return `${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}${withYear?'.'+String(d.getFullYear()).slice(2):''}`; };
 const distinctNights = arr => { const iv=arr.filter(b=>b.checkIn&&b.checkOut&&b.checkIn<b.checkOut).map(b=>[b.checkIn,b.checkOut]).sort(); let t=0,cur=null; for(const x of iv){ if(!cur||x[0]>=cur[1]){ if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); cur=[x[0],x[1]]; } else if(x[1]>cur[1]) cur[1]=x[1]; } if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); return t; };
 // שולם / נשאר לשלם: מלונות ששולמו + כל ההוצאות = שולם; מלונות שלא שולמו + תוספות במלון = נשאר
-const paidSplit = () => { let paid=0, left=0; state.bookings.forEach(b=>{ const v=Number(b.priceIls)||0; if (b.paid) paid+=v; else left+=v; left+=Number(b.extraIls)||0; }); (state.expenses||[]).forEach(e=>{ paid+=Number(e.priceIls)||0; }); return {paid, left}; };
+const paidSplit = () => { let paid=0, left=0; state.bookings.forEach(b=>{ const v=Number(b.priceIls)||0; if (b.paid) paid+=v; else left+=v; left+=Number(b.extraIls)||0; }); (state.expenses||[]).forEach(e=>{ const v=Number(e.priceIls)||0; if (e.paid===false) left+=v; else paid+=v; }); return {paid, left}; };
 const fmtN = n => (n===''||n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:0});
 const money = (n,cur) => (n===''||n==null) ? '—' : `${fmtN(n)} ${SYM[cur]||cur||''}`;
 const pc = p => PLATFORM_COLORS[p] || '#64748b';
@@ -525,7 +525,7 @@ function renderBudget() {
     el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'💰 סה״כ הוצאות הטיול · מלונות + הכל')),
     target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
     target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : null,
-    (()=>{ const PS=paidSplit(); return (PS.paid||PS.left) ? el('div',{class:'hint', style:'margin-top:6px'}, `✅ שולם ${fmtN(PS.paid)} ₪ · ⏳ נשאר לשלם ${fmtN(PS.left)} ₪ (מלונות שלא שולמו + תוספות במלון)`) : null; })(),
+    (()=>{ const PS=paidSplit(); return (PS.paid||PS.left) ? el('div',{class:'hint', style:'margin-top:6px'}, `✅ שולם ${fmtN(PS.paid)} ₪ · ⏳ נשאר לשלם ${fmtN(PS.left)} ₪ (מלונות והוצאות שלא שולמו + תוספות במלון)`) : null; })(),
     el('div',{class:'b-rows'}, ...rows.map(([i,l,v])=>el('div',{class:'b-row'}, el('span',{}, i+' '+l), el('b',{}, fmtN(v)+' ₪'), el('span',{class:'b-track'}, el('i',{style:`width:${B.totalIls?Math.round(100*v/B.totalIls):0}%`})))))
   );
   box.append(hero);
@@ -535,7 +535,7 @@ function renderBudget() {
   const list = el('div',{class:'list'});
   exps.forEach(e => list.append(el('div',{class:'card exp', onclick:()=>openExpenseDetail(e)},
     el('div',{class:'c-head'}, el('div',{}, el('div',{class:'c-title'}, catIcon(e.category)+' '+(e.title||e.category)), el('div',{class:'c-sub'}, [e.route, e.date?fmtD(e.date,true)+(e.date2?' ← '+fmtD(e.date2,true):''):'', e.account?'👤 '+e.account:''].filter(Boolean).join(' · '))),
-      el('div',{class:'price'}, e.priceIls!==''&&e.priceIls!=null?fmtN(e.priceIls)+' ₪':money(e.price,e.currency), (e.currency&&e.currency!=='ILS')?el('small',{},money(e.price,e.currency)):null)))));
+      el('div',{class:'price'}, e.priceIls!==''&&e.priceIls!=null?fmtN(e.priceIls)+' ₪':money(e.price,e.currency), (e.currency&&e.currency!=='ILS')?el('small',{},money(e.price,e.currency)):null, el('small',{}, el('span',{class:'tag '+(e.paid===false?'warn':'ok')}, e.paid===false?'⏳ לא שולם':'✅ שולם')))))));
   box.append(list);
 }
 function openExpenseDetail(e) {
@@ -547,6 +547,7 @@ function openExpenseDetail(e) {
       e.date2 ? kv('תאריך חזור', fmtD(e.date2,true)) : null, e.route ? kv('מסלול', e.route) : null,
       kv('מחיר', money(e.price,e.currency)), kv('בשקלים', e.priceIls!==''?fmtN(e.priceIls)+' ₪':'—'),
       kv('יוזר', e.account), kv('מספר הזמנה', e.confirmation),
+      el('div',{}, el('label',{},'שולם'), el('button',{class:'restore', style:'padding:0;min-height:32px', onclick:async ev=>{ ev.stopPropagation(); try{ await api('updateExpense',{id:e.id, expense:{paid:e.paid===false}},'POST'); toast(e.paid===false?'סומן כשולם ✓':'סומן כלא שולם'); closeSheet(); await load(true); renderBudget(); }catch(err){toast(err.message,true);} }}, e.paid===false?'⏳ לא שולם · סמן כשולם':'✅ שולם · סמן כלא שולם')),
       e.notes ? kv('הערות', e.notes, true) : null,
       kv('נוסף', (e.createdAt||'').replace('T',' ').slice(0,16)+(e.source?' · '+e.source:''), true)),
     el('div',{class:'actions'},
@@ -560,11 +561,14 @@ function openExpenseForm(e={}) {
   const catSel = el('select',{name:'category'}, ...EXP_CATS.map(([c,i])=>el('option',{value:c, selected:(e.category||'טיסה')===c}, i+' '+c)));
   const curSel = el('select',{name:'currency'}, ...CURRENCIES.map(c=>el('option',{value:c, selected:(e.currency||'ILS')===c}, c)));
   const flightRow = el('div',{class:'row'}, f('מסלול (למשל TLV → BKK)','route'), f('תאריך חזור (אם כלול)','date2','date'));
-  const upd = () => { flightRow.hidden = catSel.value!=='טיסה'; };
+  let paid = e.paid===undefined ? true : e.paid!==false;
+  const swEl = el('div',{class:'switch'+(paid?' on':'')}); const paidRow = el('div',{class:'toggle', onclick:()=>{ paid=!paid; swEl.classList.toggle('on',paid); }}, el('b',{},'💳 שולם כבר'), swEl);
+  const upd = () => { flightRow.hidden = catSel.value!=='טיסה'; paidRow.hidden = catSel.value==='מזומן'; };
   catSel.onchange = upd;
   const form = el('form',{onsubmit: async ev => {
     ev.preventDefault();
     const expense = Object.fromEntries(new FormData(form).entries());
+    expense.paid = catSel.value==='מזומן' ? true : paid;
     if (expense.price==='') return toast('חסר מחיר', true);
     const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
     try {
@@ -580,6 +584,7 @@ function openExpenseForm(e={}) {
     flightRow,
     el('div',{class:'row'}, f('מחיר','price','number',{attrs:{step:'0.01',inputmode:'decimal',required:true}}), el('div',{class:'f'}, el('label',{},'מטבע'), curSel)),
     el('div',{class:'row'}, f('בשקלים (ריק = אוטומטי)','priceIls','number',{attrs:{inputmode:'numeric'}}), f('יוזר','account','text',{attrs:{list:'accounts', value:e.account??get(LS.account)}})),
+    paidRow,
     f('מספר הזמנה / אסמכתא','confirmation','text',{full:true}),
     el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, e.notes||'')),
     el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'submit',class:'btn primary'}, isEdit?'שמירה':'הוספה'))
