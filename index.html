@@ -75,6 +75,8 @@ a{color:var(--brand)}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;border:1px solid transparent;position:relative;overflow:hidden}
 .card:active{transform:scale(.995)}
 .card::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:var(--pc,#94a3b8)}
+.card.grouped{background:color-mix(in srgb,var(--gc) 40%,#fff);border-color:var(--gc)}
+.group-badge{display:inline-block;font-size:11.5px;font-weight:700;color:#374151;background:var(--gc);border-radius:8px;padding:2px 8px;margin-bottom:6px}
 .c-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .c-title{font-weight:700;font-size:16.5px;line-height:1.25}
 .c-sub{color:var(--muted);font-size:13px;margin-top:2px}
@@ -254,6 +256,7 @@ const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d
 const daysUntil = iso => { if(!iso) return null; const a=new Date(todayISO()+'T00:00:00'), b=new Date(iso+'T00:00:00'); return Math.round((b-a)/86400000); };
 const WD = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const fmtD = (iso, withYear=false) => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return `${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}${withYear?'.'+String(d.getFullYear()).slice(2):''}`; };
+const distinctNights = arr => { const iv=arr.filter(b=>b.checkIn&&b.checkOut&&b.checkIn<b.checkOut).map(b=>[b.checkIn,b.checkOut]).sort(); let t=0,cur=null; for(const x of iv){ if(!cur||x[0]>=cur[1]){ if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); cur=[x[0],x[1]]; } else if(x[1]>cur[1]) cur[1]=x[1]; } if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); return t; };
 const fmtN = n => (n===''||n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:0});
 const money = (n,cur) => (n===''||n==null) ? '—' : `${fmtN(n)} ${SYM[cur]||cur||''}`;
 const pc = p => PLATFORM_COLORS[p] || '#64748b';
@@ -370,18 +373,19 @@ function render() {
   $('#viewList').classList.toggle('is-empty', !state.bookings.length);
   if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות.', el('div',{}, el('button',{type:'button', class:'btn primary', onclick:()=>openForm()}, '➕ הוספת הזמנה ראשונה')), el('div',{class:'hint'}, 'או שלח לרוברט צילום מסך של ההזמנה'))); return; }
   if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
-  const fn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
+  const fn = distinctNights(arr); const rn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
   const fils = arr.reduce((n,b)=>n+(Number(b.priceIls)||0),0);
-  list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
+  list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות${rn>fn?' ('+rn+' לילות-חדר)':''} · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
 
   let prev = null;
   arr.forEach(b => {
     if (state.sort==='checkIn' && prev && prev.checkOut && b.checkIn && !state.q && !state.filters.platform && !state.filters.dest && !state.filters.user && !state.filters.misc.size) {
       const g = daysUntil(b.checkIn) - daysUntil(prev.checkOut);
+      const sameGroup = b.groupInfo && prev.groupInfo && b.groupInfo.n===prev.groupInfo.n;
       if (g > 0) list.append(el('div',{class:'gap warn'}, `⚠️ ${g} ${g===1?'לילה':'לילות'} בלי מלון (${fmtD(prev.checkOut)} → ${fmtD(b.checkIn)})`));
-      else if (g < 0) list.append(el('div',{class:'gap bad'}, `⛔ חפיפה של ${-g} ${-g===1?'לילה':'לילות'} עם ${prev.hotel}`));
+      else if (g < 0 && !sameGroup) list.append(el('div',{class:'gap bad'}, `⛔ חפיפה של ${-g} ${-g===1?'לילה':'לילות'} עם ${prev.hotel}`));
     }
-    list.append(card(b)); prev = b;
+    list.append(card(b)); if (!(prev && b.groupInfo && prev.groupInfo && b.groupInfo.n===prev.groupInfo.n && prev.checkOut > b.checkOut)) prev = b;
   });
 }
 
@@ -411,7 +415,9 @@ function openFilters() {
 
 function card(b) {
   const ci = cancelInfo(b);
-  const c = el('div',{class:'card', style:`--pc:${pc(b.platform)}`, onclick:()=>openDetail(b)},
+  const g = b.groupInfo;
+  const c = el('div',{class:'card'+(g?' grouped':''), style:`--pc:${pc(b.platform)}`+(g?`;--gc:${g.color}`:''), onclick:()=>openDetail(b)},
+    g ? el('div',{class:'group-badge'}, `🛏 חדר ${g.idx} מתוך ${g.size} במקביל`) : null,
     el('div',{class:'c-head'},
       el('div',{}, el('div',{class:'c-title'}, b.hotel||'—'), el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')+(b.roomType?' · '+b.roomType:''))),
       el('span',{class:'badge'}, b.platform||'?')),
@@ -469,6 +475,7 @@ function openDetail(b) {
   openSheet(el('div',{},
     el('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'}, el('h2',{}, b.hotel), el('span',{class:'badge', style:`--pc:${pc(b.platform)}`}, b.platform)),
     el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')),
+    b.groupInfo ? el('div',{class:'group-badge', style:`--gc:${b.groupInfo.color};margin-top:6px`}, `🛏 חדר ${b.groupInfo.idx} מתוך ${b.groupInfo.size} במקביל (קבוצה ${b.groupInfo.n})`) : null,
     el('div',{class:'kv'},
       kv('צ׳ק-אין', fmtD(b.checkIn,true)), kv('צ׳ק-אאוט', fmtD(b.checkOut,true)),
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),

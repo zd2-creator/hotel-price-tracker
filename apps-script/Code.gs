@@ -37,6 +37,7 @@ var COLS = [
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
+  ['group', 'חדרים במקביל', 'text'],
   ['source', 'מקור', 'text'],
   ['createdAt', 'נוצר', 'text'],
   ['updatedAt', 'עודכן', 'text']
@@ -166,6 +167,7 @@ function normalize_(b, existing) {
     r[k] = v;
   });
   r.platform = normPlatform_(r.platform);
+  r.group = existing ? existing.group : '';
   r.currency = String(r.currency || 'ILS').toUpperCase().replace('₪', 'ILS').replace('NIS', 'ILS').replace('$', 'USD').replace('€', 'EUR').replace('£', 'GBP').replace('฿', 'THB').trim();
   if (r.checkIn && r.checkOut) r.nights = nightsBetween_(r.checkIn, r.checkOut);
   else if (r.checkIn && r.nights && !r.checkOut) { var d = new Date(r.checkIn + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + Number(r.nights)); r.checkOut = d.toISOString().slice(0, 10); }
@@ -274,10 +276,59 @@ function remindersStatus_() {
   return { configured: !!(token && chat), triggerInstalled: installed, active: !!(token && chat) && installed, days: days, paymentDays: [7, 1, 0], hour: 9 };
 }
 
+// ---------- חדרים במקביל (אותו מלון, תאריכים חופפים) ----------
+var GROUP_COLORS = ['#fff3b0', '#cfe4ff', '#c9f2d0', '#ffd6e7', '#e3d9ff', '#ffe0c2', '#c8f4f0', '#f0e0c0'];
+function overlaps_(a, b) { return a.checkIn && a.checkOut && b.checkIn && b.checkOut && a.checkIn < b.checkOut && b.checkIn < a.checkOut; }
+/** מחזיר map id → {n, size, color} רק לקבוצות של 2+ הזמנות */
+function computeGroups_(list) {
+  var parent = list.map(function (_, i) { return i; });
+  function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+  for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) {
+    if (norm_(list[i].hotel) === norm_(list[j].hotel) && overlaps_(list[i], list[j])) parent[find(i)] = find(j);
+  }
+  var members = {};
+  list.forEach(function (r, i) { var root = find(i); (members[root] = members[root] || []).push(r); });
+  var groups = Object.keys(members).map(function (k) { return members[k]; }).filter(function (g) { return g.length > 1; });
+  groups.sort(function (a, b) { return String(a[0].checkIn).localeCompare(String(b[0].checkIn)); });
+  var out = {};
+  groups.forEach(function (g, gi) { g.forEach(function (r, ri) { out[r.id] = { n: gi + 1, size: g.length, idx: ri + 1, color: GROUP_COLORS[gi % GROUP_COLORS.length] }; }); });
+  return out;
+}
+/** צובע בגיליון שורות של חדרים במקביל באותו צבע וכותב תווית בעמודה "חדרים במקביל" */
+function syncGroups_() {
+  var sh = bookingsSheet_();
+  var all = readAll_(sh, COLS);
+  if (!all.length) return;
+  var groups = computeGroups_(all);
+  var header = headerOf_(sh, COLS);
+  var gi = header.indexOf('חדרים במקביל');
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  var bg = [], labels = [];
+  for (var row = 2; row <= last; row++) { bg.push(header.map(function () { return null; })); labels.push(['']); }
+  all.forEach(function (r) {
+    var g = groups[r.id];
+    if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
+  });
+  sh.getRange(2, 1, last - 1, header.length).setBackgrounds(bg);
+  if (gi >= 0) sh.getRange(2, gi + 1, last - 1, 1).setValues(labels);
+}
+/** לילות ייחודיים (איחוד טווחי תאריכים) — חדרים במקביל נספרים פעם אחת */
+function distinctNights_(list) {
+  var iv = list.filter(function (r) { return r.checkIn && r.checkOut && r.checkIn < r.checkOut; }).map(function (r) { return [r.checkIn, r.checkOut]; }).sort();
+  var total = 0, cur = null;
+  iv.forEach(function (x) {
+    if (!cur || x[0] >= cur[1]) { if (cur) total += nightsBetween_(cur[0], cur[1]) || 0; cur = [x[0], x[1]]; }
+    else if (x[1] > cur[1]) cur[1] = x[1];
+  });
+  if (cur) total += nightsBetween_(cur[0], cur[1]) || 0;
+  return total;
+}
+
 function summary_(list) {
   var nights = 0, ils = 0, missingIls = 0;
   list.forEach(function (r) { nights += Number(r.nights) || 0; if (r.priceIls !== '' && r.priceIls !== null) ils += Number(r.priceIls) || 0; else if (r.price !== '') missingIls++; });
-  return { count: list.length, nights: nights, totalIls: Math.round(ils), missingIls: missingIls, targetNights: Number(props_().getProperty('TARGET_NIGHTS') || 21) };
+  return { count: list.length, nights: distinctNights_(list), roomNights: nights, totalIls: Math.round(ils), missingIls: missingIls, targetNights: Number(props_().getProperty('TARGET_NIGHTS') || 21) };
 }
 
 function norm_(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9֐-׿]+/g, ' ').trim(); }
@@ -314,10 +365,17 @@ function doPost(e) {
 }
 
 function handle_(action, p, by) {
+  var res = handleInner_(action, p, by);
+  if (['add', 'upsert', 'update', 'delete', 'restore'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
+  return res;
+}
+function handleInner_(action, p, by) {
   by = p.by || p.source || by;
   switch (action) {
     case 'list': {
       var list = listBookings_();
+      var groups = computeGroups_(list);
+      list.forEach(function (r) { r.groupInfo = groups[r.id] || null; });
       return json_({ ok: true, bookings: list, summary: summary_(list), platforms: PLATFORMS, reminders: remindersStatus_() });
     }
     case 'history': {
@@ -341,10 +399,15 @@ function handle_(action, p, by) {
     case 'upsert': {
       // לרוברט: מחפש הזמנה קיימת לאותו מלון. 0 → מוסיף. 1 → מחליף. יותר → מבקש replaceId.
       var b = p.booking || p; if (!b.hotel) return json_({ ok: false, error: 'חסר שם מלון' });
+      if (p.parallel) return handleInner_('add', { token: p.token, booking: b, by: by, note: p.note || 'חדר נוסף במקביל' }, by);
       var all = readAll_(bookingsSheet_(), COLS);
       var cands = p.replaceId ? all.filter(function (r) { return String(r.id) === String(p.replaceId); }) : matchCandidates_(all, b);
       if (cands.length > 1) {
         return json_({ ok: false, needsChoice: true, error: 'נמצאו כמה הזמנות דומות — שלח replaceId', candidates: cands.map(function (r) { delete r._row; return r; }) });
+      }
+      if (cands.length === 1 && !p.replaceId && p.confirmReplace !== true && cands[0].confirmation && b.confirmation && String(cands[0].confirmation) !== String(b.confirmation)) {
+        var c1 = cands[0]; delete c1._row;
+        return json_({ ok: false, needsConfirm: true, error: 'קיימת הזמנה לאותו מלון עם מספר הזמנה אחר — חדר נוסף במקביל (parallel:true) או החלפה (confirmReplace:true)?', candidate: c1 });
       }
       if (cands.length === 1 && p.replaceId === undefined && p.confirmReplace === false) {
         var c0 = cands[0]; delete c0._row;
@@ -352,7 +415,7 @@ function handle_(action, p, by) {
       }
       var q = { token: p.token, booking: b, by: by, note: p.note };
       if (cands.length === 1) q.replaceId = cands[0].id;
-      return handle_('add', q, by);
+      return handleInner_('add', q, by);
     }
     case 'update': {
       var old = findRow_(p.id); if (!old) return json_({ ok: false, error: 'לא נמצא' });
