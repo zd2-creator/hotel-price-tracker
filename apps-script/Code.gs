@@ -271,7 +271,12 @@ function syncSummary_() {
   var list = listBookings_(); var sum = summary_(list); var exps = listExpenses_(); var B = budget_(sum, exps);
   var rows = [['סעיף', 'ערך'], ['לילות סגורים', sum.nights + ' מתוך ' + sum.targetNights], ['מלונות (הזמנות)', sum.count], ['מלונות ₪', sum.totalIls], ['תוספות במלון ₪', sum.extrasIls]];
   EXP_CATEGORIES.forEach(function (c) { rows.push([c + ' ₪', Math.round(B.byCategory[c] || 0)]); });
+  var paid = 0, left = 0;
+  list.forEach(function (r) { var v = Number(r.priceIls) || 0; if (r.paid) paid += v; else left += v; left += Number(r.extraIls) || 0; });
+  exps.forEach(function (e) { paid += Number(e.priceIls) || 0; });
   rows.push(['סה"כ הטיול ₪', B.totalIls]);
+  rows.push(['שולם ₪', Math.round(paid)]);
+  rows.push(['נשאר לשלם ₪ (מלונות שלא שולמו + תוספות)', Math.round(left)]);
   rows.push(['תקציב יעד ₪', B.targetBudget || '']);
   rows.push(['נשאר ₪', B.targetBudget ? B.targetBudget - B.totalIls : '']);
   rows.push(['ממוצע ללילה ₪ (כולל תוספות)', sum.nights ? Math.round(sum.hotelsIls / sum.nights) : '']);
