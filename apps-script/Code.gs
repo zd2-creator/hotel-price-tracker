@@ -61,6 +61,7 @@ var EXP_COLS = [
   ['currency', 'מטבע', 'text'],
   ['priceIls', 'בשקלים', 'num'],
   ['account', 'יוזר', 'text'],
+  ['paid', 'שולם', 'bool'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['notes', 'הערות', 'text'],
   ['source', 'מקור', 'text'],
@@ -224,6 +225,7 @@ function normalizeExpense_(b, existing) {
     var v = b[k];
     if (c[2] === 'date') v = normDate_(v);
     else if (c[2] === 'num') v = normNum_(v);
+    else if (c[2] === 'bool') v = normBool_(v);
     else v = v === null ? '' : String(v).trim();
     r[k] = v;
   });
@@ -241,6 +243,8 @@ function normalizeExpense_(b, existing) {
     if (r.currency === 'ILS') r.priceIls = r.price;
     else { var rate3 = fxRate_(r.currency); r.priceIls = rate3 ? Math.round(r.price * rate3) : ''; }
   }
+  if (r.category === 'מזומן') r.paid = true; // משיכת מזומן = כסף שכבר יצא
+  else if (!existing && b.paid === undefined) r.paid = true; // ברירת מחדל: הוצאה שנרשמת כבר שולמה
   if (!r.title) r.title = r.category === 'טיסה' ? ('טיסה ' + (r.route || '')).trim() : r.category === 'מזומן' ? 'משיכת מזומן' : r.category;
   return r;
 }
@@ -273,7 +277,7 @@ function syncSummary_() {
   EXP_CATEGORIES.forEach(function (c) { rows.push([c + ' ₪', Math.round(B.byCategory[c] || 0)]); });
   var paid = 0, left = 0;
   list.forEach(function (r) { var v = Number(r.priceIls) || 0; if (r.paid) paid += v; else left += v; left += Number(r.extraIls) || 0; });
-  exps.forEach(function (e) { paid += Number(e.priceIls) || 0; });
+  exps.forEach(function (e) { var v = Number(e.priceIls) || 0; if (e.paid === false) left += v; else paid += v; });
   rows.push(['סה"כ הטיול ₪', B.totalIls]);
   rows.push(['שולם ₪', Math.round(paid)]);
   rows.push(['נשאר לשלם ₪ (מלונות שלא שולמו + תוספות)', Math.round(left)]);
