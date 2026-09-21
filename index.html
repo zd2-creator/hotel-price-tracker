@@ -469,7 +469,7 @@ function card(b) {
     el('div',{class:'c-foot'},
       el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency),
         el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : ''),
-        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}${b.nights>0&&b.priceIls!==''?' → '+fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ ללילה':''}`) : null),
+        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}${b.nights>0&&b.priceIls!==''?' = '+fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ ללילה':''}`) : null),
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
