@@ -40,6 +40,7 @@ a{color:var(--brand)}
 .stat-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:13px;opacity:.9;white-space:nowrap;font-variant-numeric:tabular-nums}
 .stat-row b{font-size:15px;font-weight:800}
 .stat-row .sep{opacity:.5}
+.stat-row.grand{margin-top:6px;font-size:14px;opacity:1;gap:6px}.stat-row.grand b{font-size:17px}
 
 /* filters */
 .tools{padding:12px 16px 0}
@@ -197,6 +198,7 @@ button.pill::before{content:"";position:absolute;inset:-4px}
       <span><b id="sAvg">–</b> ללילה</span><span class="sep">·</span>
       <span><b id="sCount">–</b> מלונות</span>
     </div>
+    <div class="stat-row grand" id="grandRow" hidden><span>💰 סה״כ יצא על הכל:</span><b id="sGrand">–</b></div>
     <div class="alert-line" id="alertLine" hidden></div>
   </header>
   <div class="tabbar">
@@ -363,6 +365,7 @@ function render() {
   $('#sTarget').textContent = target;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
   $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
+  const BT = state.budget && Number(state.budget.totalIls)||0; $('#grandRow').hidden = !(BT && BT !== Number(S.totalIls)); $('#sGrand').textContent = fmtN(BT)+' ₪';
   $('#sCount').textContent = S.count;
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
   // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר (מוסתרת כשהתזכורות פעילות ואין ביטול קרוב)
@@ -491,9 +494,9 @@ function renderBudget() {
   const target = Number(B.targetBudget || get(LS.budget) || 0);
   const rows = [['🏨','מלונות', B.hotelsIls], ['🛏','תוספות במלון', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
   const hero = el('div',{class:'bcard main'},
-    el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'סה״כ הטיול עד עכשיו')),
+    el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'סה״כ יצא עד עכשיו · מלונות + כל ההוצאות')),
     target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
-    target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : el('button',{class:'restore',onclick:openSettings},'⚙ הגדר תקציב יעד'),
+    target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : null,
     el('div',{class:'b-rows'}, ...rows.map(([i,l,v])=>el('div',{class:'b-row'}, el('span',{}, i+' '+l), el('b',{}, fmtN(v)+' ₪'), el('i',{style:`width:${B.totalIls?Math.round(100*v/B.totalIls):0}%`}))))
   );
   box.append(hero);
@@ -645,7 +648,7 @@ function openSettings() {
     inp('כתובת ה-Web App (Apps Script)', LS.api, 'https://script.google.com/macros/s/…/exec','url'),
     inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
     inp('יעד לילות לטיול', LS.target, '21','number'),
-    inp('תקציב כולל לטיול (₪, לא חובה)', LS.budget, 'למשל 60000','number'),
+    inp('תקציב יעד (₪) — לא חובה, רק אם רוצים פס התקדמות', LS.budget, 'אפשר להשאיר ריק','number'),
     el('div',{class:'f'}, el('label',{},'🔔 תזכורות טלגרם לפני סיום ביטול חינם'), el('div',{class:'hint', style:'background:#f8fafc;border-radius:12px;padding:10px 12px;line-height:1.5'},
       (state.reminders&&state.reminders.active) ? `פעילות ✓ נשלחות ${state.reminders.days.join('/')} ימים לפני, בשעה 09:00.` :
       'לא מוגדרות. בעורך Apps Script של הגיליון: ⚙ הגדרות הפרויקט → Script properties → להוסיף TELEGRAM_BOT_TOKEN ו-TELEGRAM_CHAT_ID (431692318), ואז להריץ installTriggers() ו-sendTestReminder(). ברירת מחדל: 14, 7, 3, 1, 0 ימים לפני (REMINDER_DAYS).')),
