@@ -38,6 +38,31 @@ var COLS = [
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
   ['group', 'חדרים במקביל', 'text'],
+  ['extraPrice', 'תוספת במלון', 'num'],
+  ['extraNote', 'פירוט התוספת', 'text'],
+  ['extraIls', 'תוספת בשקלים', 'num'],
+  ['source', 'מקור', 'text'],
+  ['createdAt', 'נוצר', 'text'],
+  ['updatedAt', 'עודכן', 'text']
+];
+var SHEET_EXPENSES = 'הוצאות';
+var SHEET_SETTINGS = 'הגדרות';
+var SHEET_SUMMARY = 'סיכום';
+var SETTINGS_COLS = [['key', 'מפתח', 'text'], ['value', 'ערך', 'text'], ['desc', 'הסבר', 'text']];
+var EXP_CATEGORIES = ['טיסה', 'מזומן', 'תחבורה', 'אטרקציות', 'ביטוח', 'אחר'];
+var EXP_COLS = [
+  ['id', 'מזהה', 'text'],
+  ['category', 'קטגוריה', 'text'],
+  ['title', 'תיאור', 'text'],
+  ['date', 'תאריך', 'date'],
+  ['date2', 'תאריך חזור', 'date'],
+  ['route', 'מסלול', 'text'],
+  ['price', 'מחיר', 'num'],
+  ['currency', 'מטבע', 'text'],
+  ['priceIls', 'בשקלים', 'num'],
+  ['account', 'יוזר', 'text'],
+  ['confirmation', 'מספר הזמנה', 'text'],
+  ['notes', 'הערות', 'text'],
   ['source', 'מקור', 'text'],
   ['createdAt', 'נוצר', 'text'],
   ['updatedAt', 'עודכן', 'text']
@@ -64,6 +89,9 @@ function setup() {
   writeHeader_(history, HISTORY_COLS);
   var archive = ss.getSheetByName(SHEET_ARCHIVE) || ss.insertSheet(SHEET_ARCHIVE);
   writeHeader_(archive, ARCHIVE_COLS);
+  var expenses = ss.getSheetByName(SHEET_EXPENSES) || ss.insertSheet(SHEET_EXPENSES);
+  writeHeader_(expenses, EXP_COLS);
+  settingsSheet_(); syncSummary_();
 
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty('API_TOKEN')) props.setProperty('API_TOKEN', Utilities.getUuid().replace(/-/g, ''));
@@ -178,7 +206,92 @@ function normalize_(b, existing) {
     if (r.currency === 'ILS') r.priceIls = r.price;
     else { var rate = fxRate_(r.currency); r.priceIls = rate ? Math.round(r.price * rate) : ''; }
   }
+  // תוספת שתשולם במלון (למשל מיטה נוספת) — באותו מטבע של ההזמנה
+  if (r.extraPrice === '' || r.extraPrice === null) r.extraIls = '';
+  else if (b.extraPrice !== undefined || b.currency !== undefined || r.extraIls === '') {
+    if (r.currency === 'ILS') r.extraIls = r.extraPrice;
+    else { var rate2 = fxRate_(r.currency); r.extraIls = rate2 ? Math.round(r.extraPrice * rate2) : ''; }
+  }
   return r;
+}
+
+function normalizeExpense_(b, existing) {
+  var r = {};
+  EXP_COLS.forEach(function (c) { r[c[0]] = existing ? existing[c[0]] : ''; });
+  EXP_COLS.forEach(function (c) {
+    var k = c[0];
+    if (b[k] === undefined) return;
+    var v = b[k];
+    if (c[2] === 'date') v = normDate_(v);
+    else if (c[2] === 'num') v = normNum_(v);
+    else v = v === null ? '' : String(v).trim();
+    r[k] = v;
+  });
+  var cat = String(r.category || '').trim().toLowerCase();
+  if (cat.indexOf('flight') >= 0 || cat.indexOf('טיס') >= 0 || cat === 'air') r.category = 'טיסה';
+  else if (cat.indexOf('cash') >= 0 || cat.indexOf('atm') >= 0 || cat.indexOf('מזומן') >= 0 || cat.indexOf('כספומט') >= 0) r.category = 'מזומן';
+  else if (cat.indexOf('taxi') >= 0 || cat.indexOf('train') >= 0 || cat.indexOf('ferry') >= 0 || cat.indexOf('תחבור') >= 0 || cat.indexOf('מונית') >= 0 || cat.indexOf('רכבת') >= 0 || cat.indexOf('מעבורת') >= 0) r.category = 'תחבורה';
+  else if (cat.indexOf('insur') >= 0 || cat.indexOf('ביטוח') >= 0) r.category = 'ביטוח';
+  else if (cat.indexOf('attr') >= 0 || cat.indexOf('אטרק') >= 0 || cat.indexOf('טיול') >= 0 || cat.indexOf('tour') >= 0) r.category = 'אטרקציות';
+  else if (EXP_CATEGORIES.indexOf(r.category) < 0) r.category = r.category ? 'אחר' : 'אחר';
+  r.currency = String(r.currency || 'ILS').toUpperCase().replace('₪', 'ILS').replace('NIS', 'ILS').replace('$', 'USD').replace('€', 'EUR').replace('£', 'GBP').replace('฿', 'THB').trim();
+  var manualIls = b.priceIls !== undefined && b.priceIls !== null && String(b.priceIls) !== '';
+  var priceChanged = !existing || String(existing.price) !== String(r.price) || String(existing.currency) !== String(r.currency);
+  if (!manualIls && r.price !== '' && (r.priceIls === '' || priceChanged)) {
+    if (r.currency === 'ILS') r.priceIls = r.price;
+    else { var rate3 = fxRate_(r.currency); r.priceIls = rate3 ? Math.round(r.price * rate3) : ''; }
+  }
+  if (!r.title) r.title = r.category === 'טיסה' ? ('טיסה ' + (r.route || '')).trim() : r.category === 'מזומן' ? 'משיכת מזומן' : r.category;
+  return r;
+}
+function settingsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_SETTINGS); writeHeader_(sh, SETTINGS_COLS);
+    sh.getRange(2, 1, 2, 3).setValues([['TARGET_NIGHTS', props_().getProperty('TARGET_NIGHTS') || 21, 'יעד לילות לטיול'], ['TARGET_BUDGET', props_().getProperty('TARGET_BUDGET') || 0, 'תקציב כולל בשקלים (0 = לא הוגדר)']]);
+  }
+  return sh;
+}
+function getSetting_(key, def) {
+  var rows = readAll_(settingsSheet_(), SETTINGS_COLS);
+  for (var i = 0; i < rows.length; i++) if (String(rows[i].key) === key) return rows[i].value === '' ? def : rows[i].value;
+  return def;
+}
+function setSetting_(key, value, desc) {
+  var sh = settingsSheet_();
+  var rows = readAll_(sh, SETTINGS_COLS);
+  for (var i = 0; i < rows.length; i++) if (String(rows[i].key) === key) { sh.getRange(rows[i]._row, 2).setValue(value); return; }
+  sh.appendRow([key, value, desc || '']);
+}
+/** טאב "סיכום" — תמונת מצב של התקציב, נכתב מחדש אחרי כל שינוי (גיבוי קריא בגיליון) */
+function syncSummary_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_SUMMARY) || ss.insertSheet(SHEET_SUMMARY);
+  var list = listBookings_(); var sum = summary_(list); var exps = listExpenses_(); var B = budget_(sum, exps);
+  var rows = [['סעיף', 'ערך'], ['לילות סגורים', sum.nights + ' מתוך ' + sum.targetNights], ['מלונות (הזמנות)', sum.count], ['מלונות ₪', sum.totalIls], ['תוספות במלון ₪', sum.extrasIls]];
+  EXP_CATEGORIES.forEach(function (c) { rows.push([c + ' ₪', Math.round(B.byCategory[c] || 0)]); });
+  rows.push(['סה"כ הטיול ₪', B.totalIls]);
+  rows.push(['תקציב יעד ₪', B.targetBudget || '']);
+  rows.push(['נשאר ₪', B.targetBudget ? B.targetBudget - B.totalIls : '']);
+  rows.push(['ממוצע ללילה ₪', sum.nights ? Math.round(sum.totalIls / sum.nights) : '']);
+  rows.push(['עודכן', now_()]);
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, 2).setValues(rows);
+  sh.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#e8f0fe');
+  sh.setRightToLeft(true); sh.setFrozenRows(1); sh.autoResizeColumns(1, 2);
+}
+function expensesSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_EXPENSES);
+  if (!sh) { sh = ss.insertSheet(SHEET_EXPENSES); writeHeader_(sh, EXP_COLS); }
+  return sh;
+}
+function listExpenses_() { return readAll_(expensesSheet_(), EXP_COLS); }
+function findExpense_(id) { var all = listExpenses_(); for (var i = 0; i < all.length; i++) if (String(all[i].id) === String(id)) return all[i]; return null; }
+function logExpenseHistory_(action, by, note, e) {
+  var rec = { hotel: '[' + e.category + '] ' + e.title, destination: e.route || '', checkIn: e.date, checkOut: e.date2, price: e.price, currency: e.currency, priceIls: e.priceIls, account: e.account, confirmation: e.confirmation, notes: e.notes, id: e.id, platform: 'הוצאה', source: e.source, createdAt: e.createdAt, updatedAt: e.updatedAt };
+  logHistory_(action, by, note, rec);
 }
 
 var FX_CACHE_ = {};
@@ -328,7 +441,15 @@ function distinctNights_(list) {
 function summary_(list) {
   var nights = 0, ils = 0, missingIls = 0;
   list.forEach(function (r) { nights += Number(r.nights) || 0; if (r.priceIls !== '' && r.priceIls !== null) ils += Number(r.priceIls) || 0; else if (r.price !== '') missingIls++; });
-  return { count: list.length, nights: distinctNights_(list), roomNights: nights, totalIls: Math.round(ils), missingIls: missingIls, targetNights: Number(props_().getProperty('TARGET_NIGHTS') || 21) };
+  var extras = 0; list.forEach(function (r) { extras += Number(r.extraIls) || 0; });
+  return { count: list.length, nights: distinctNights_(list), roomNights: nights, totalIls: Math.round(ils), extrasIls: Math.round(extras), hotelsIls: Math.round(ils + extras), missingIls: missingIls, targetNights: Number(getSetting_('TARGET_NIGHTS', 21)) || 21 };
+}
+function budget_(bookingsSummary, expenses) {
+  var byCat = {}; EXP_CATEGORIES.forEach(function (c) { byCat[c] = 0; });
+  expenses.forEach(function (e) { var v = Number(e.priceIls) || 0; byCat[e.category] = (byCat[e.category] || 0) + v; });
+  var expTotal = 0; Object.keys(byCat).forEach(function (k) { expTotal += byCat[k]; });
+  var total = (bookingsSummary.hotelsIls || 0) + expTotal;
+  return { hotelsIls: bookingsSummary.totalIls, extrasIls: bookingsSummary.extrasIls, byCategory: byCat, expensesIls: Math.round(expTotal), totalIls: Math.round(total), targetBudget: Number(getSetting_('TARGET_BUDGET', 0)) || 0, categories: EXP_CATEGORIES };
 }
 
 function norm_(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9֐-׿]+/g, ' ').trim(); }
@@ -367,6 +488,7 @@ function doPost(e) {
 function handle_(action, p, by) {
   var res = handleInner_(action, p, by);
   if (['add', 'upsert', 'update', 'delete', 'restore'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
+  if (['add', 'upsert', 'update', 'delete', 'restore', 'addExpense', 'updateExpense', 'deleteExpense', 'setTarget', 'setBudget'].indexOf(action) >= 0) { try { syncSummary_(); } catch (e) { } }
   return res;
 }
 function handleInner_(action, p, by) {
@@ -376,7 +498,9 @@ function handleInner_(action, p, by) {
       var list = listBookings_();
       var groups = computeGroups_(list);
       list.forEach(function (r) { r.groupInfo = groups[r.id] || null; });
-      return json_({ ok: true, bookings: list, summary: summary_(list), platforms: PLATFORMS, reminders: remindersStatus_() });
+      var sum = summary_(list);
+      var exps = listExpenses_().map(function (r) { delete r._row; return r; });
+      return json_({ ok: true, bookings: list, summary: sum, expenses: exps, budget: budget_(sum, exps), platforms: PLATFORMS, reminders: remindersStatus_() });
     }
     case 'history': {
       var h = readAll_(historySheet_(), HISTORY_COLS).map(function (r) { delete r._row; return r; }).reverse();
@@ -455,7 +579,35 @@ function handleInner_(action, p, by) {
       logHistory_('נמחק לצמיתות', by, p.note || '', src);
       return json_({ ok: true, purged: src });
     }
-    case 'setTarget': { props_().setProperty('TARGET_NIGHTS', String(Number(p.nights) || 21)); return json_({ ok: true }); }
+    case 'setTarget': { setSetting_('TARGET_NIGHTS', Number(p.nights) || 21, 'יעד לילות לטיול'); return json_({ ok: true }); }
+    case 'setBudget': { setSetting_('TARGET_BUDGET', Number(p.ils) || 0, 'תקציב כולל בשקלים (0 = לא הוגדר)'); return json_({ ok: true }); }
+    case 'expenses': {
+      var ex = listExpenses_().map(function (r) { delete r._row; return r; });
+      return json_({ ok: true, expenses: ex, budget: budget_(summary_(listBookings_()), ex) });
+    }
+    case 'addExpense': {
+      var eb = p.expense || p; if (eb.price === undefined || eb.price === '') return json_({ ok: false, error: 'חסר מחיר' });
+      var er = normalizeExpense_(eb); er.id = 'e' + newId_(); er.source = by; er.createdAt = now_(); er.updatedAt = er.createdAt;
+      var esh = expensesSheet_(); esh.appendRow(toRow_(er, EXP_COLS, esh));
+      logExpenseHistory_('נוספה הוצאה', by, p.note || '', er);
+      var exs = listExpenses_();
+      return json_({ ok: true, expense: er, budget: budget_(summary_(listBookings_()), exs) });
+    }
+    case 'updateExpense': {
+      var eo = findExpense_(p.id); if (!eo) return json_({ ok: false, error: 'לא נמצא' });
+      var erow = eo._row; delete eo._row;
+      var er2 = normalizeExpense_(p.expense || p.fields || p, eo); er2.id = eo.id; er2.createdAt = eo.createdAt; er2.source = eo.source || by; er2.updatedAt = now_();
+      var ch = EXP_COLS.filter(function (c) { return String(eo[c[0]]) !== String(er2[c[0]]) && c[0] !== 'updatedAt'; }).map(function (c) { return c[1] + ': ' + eo[c[0]] + ' → ' + er2[c[0]]; });
+      var esh2 = expensesSheet_(); var row2 = toRow_(er2, EXP_COLS, esh2); esh2.getRange(erow, 1, 1, row2.length).setValues([row2]);
+      logExpenseHistory_('עודכנה הוצאה', by, ch.join(' | '), eo);
+      return json_({ ok: true, expense: er2, changes: ch });
+    }
+    case 'deleteExpense': {
+      var ed = findExpense_(p.id); if (!ed) return json_({ ok: false, error: 'לא נמצא' });
+      expensesSheet_().deleteRow(ed._row); delete ed._row;
+      logExpenseHistory_('נמחקה הוצאה', by, p.note || '', ed);
+      return json_({ ok: true, deleted: ed, budget: budget_(summary_(listBookings_()), listExpenses_()) });
+    }
     default: return json_({ ok: false, error: 'פעולה לא מוכרת: ' + action });
   }
 }

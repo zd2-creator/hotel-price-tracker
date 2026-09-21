@@ -36,7 +36,10 @@ Script properties: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (431692318) → לה
 | `restore` | `id` | מחזיר מהארכיון לרשימה הפעילה |
 | `purge` | `id` | מחיקה לצמיתות מהארכיון (נשאר רק ביומן) |
 | `history` | `limit?` | ההיסטוריה (חדש→ישן) |
-| `setTarget` | `nights` | יעד לילות (ברירת מחדל 21) |
+| `setTarget` | `nights` | יעד לילות (ברירת מחדל 21, נשמר בטאב הגדרות) |
+| `setBudget` | `ils` | תקציב כולל לטיול |
+| `expenses` | – | הוצאות (טיסות/מזומן/…) + budget |
+| `addExpense` / `updateExpense` / `deleteExpense` | `expense` / `id` | ניהול הוצאות |
 
 GET עובד ל-`list`/`history`/`get` עם `?action=..&token=..`. `?action=ping` פתוח לבדיקת חיים.
 

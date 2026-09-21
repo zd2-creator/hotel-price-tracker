@@ -138,6 +138,17 @@ form textarea{min-height:64px;resize:vertical}
 .replace-note{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13.5px;margin-top:10px;font-weight:600}
 
 /* history */
+.bcard{margin:12px 16px 0;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.b-total b{display:block;font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
+.b-total span{font-size:13px;color:var(--muted)}
+.bar.light{background:#e5e7eb;margin-top:10px}.bar.light i{background:var(--brand)}.bar.light i.over{background:var(--bad)}
+.b-rows{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.b-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14px;align-items:center}
+.b-row b{font-variant-numeric:tabular-nums}
+.b-row i{grid-column:1/-1;display:block;height:4px;border-radius:99px;background:var(--brand-soft);position:relative}
+.b-head{display:flex;align-items:baseline;justify-content:space-between;padding:16px 18px 0}
+.b-head h3{margin:0;font-size:16px}
+.card.exp .price{text-align:left}
 .hist{padding:8px 16px;display:flex;flex-direction:column;gap:8px}
 .h-item{background:var(--card);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);font-size:14px}
 .h-item .h-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
@@ -156,7 +167,7 @@ button.pill::before{content:"";position:absolute;inset:-4px}
 .pill.due-bad{color:#fca5a5}.pill.due-warn{color:#fde68a}.pill.due-ok{color:#a7f3d0}
 .tabbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 16px;padding-top:calc(8px + env(safe-area-inset-top))}
 .tabs{display:flex;gap:4px;background:#e5e7eb;border-radius:12px;padding:3px}
-.tabs button{flex:1;min-height:44px;padding:0 4px;border-radius:10px;color:#4b5563;font-weight:600;font-size:14px}
+.tabs button{flex:1;min-height:44px;padding:0 2px;border-radius:10px;color:#4b5563;font-weight:600;font-size:13.5px;white-space:nowrap}
 .tabs button.on{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.06),0 2px 6px rgba(16,24,40,.1)}
 
 .toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
@@ -191,6 +202,7 @@ button.pill::before{content:"";position:absolute;inset:-4px}
   <div class="tabbar">
     <div class="tabs">
       <button type="button" class="on" data-view="list">הזמנות</button>
+      <button type="button" data-view="budget">תקציב</button>
       <button type="button" data-view="archive">ארכיון</button>
       <button type="button" data-view="history">היסטוריה</button>
     </div>
@@ -202,6 +214,10 @@ button.pill::before{content:"";position:absolute;inset:-4px}
     </div>
     <div class="chips" id="chips"></div>
     <div class="list" id="list"></div>
+  </section>
+
+  <section id="viewBudget" hidden>
+    <div id="budget"></div>
   </section>
 
   <section id="viewArchive" hidden>
@@ -231,7 +247,9 @@ button.pill::before{content:"";position:absolute;inset:-4px}
 // אחרי הפריסה של ה-Apps Script אפשר להדביק כאן את ה-URL קבוע, או להזין דרך מסך ההגדרות (נשמר במכשיר).
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxcQh48Ms3EZykmRmQo3rHk3ri96Fr61QR5TqxWOeDDwpySQzjM_-SCns8mmMRoqZxFYA/exec';
 const SHEET_URL = ''; // אופציונלי: קישור לגיליון להצגה בהגדרות
-const LS = { api:'tb_api', token:'tb_token', cache:'tb_cache', target:'tb_target', account:'tb_account' };
+const LS = { api:'tb_api', token:'tb_token', cache:'tb_cache', target:'tb_target', budget:'tb_budget', account:'tb_account' };
+const EXP_CATS = [['טיסה','✈️'],['מזומן','🏧'],['תחבורה','🚕'],['אטרקציות','🎟️'],['ביטוח','🛡️'],['אחר','🧾']];
+const catIcon = c => (EXP_CATS.find(x=>x[0]===c)||['','🧾'])[1];
 const get = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
 const set = (k,v) => { try { localStorage.setItem(k, v); } catch {} };
 const API = () => get(LS.api) || DEFAULT_API_URL;
@@ -246,7 +264,7 @@ const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
 
-let state = { bookings:[], summary:null, reminders:null, history:[], archive:[], filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+let state = { bookings:[], summary:null, reminders:null, expenses:[], budget:null, history:[], archive:[], filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
 /* ====== עזרים ====== */
 const $ = s => document.querySelector(s);
@@ -285,9 +303,10 @@ async function api(action, params={}, method='GET') {
 
 async function load(silent=false) {
   try {
-    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; state.reminders=c.reminders||null; render(); } catch{} }
+    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; state.reminders=c.reminders||null; state.expenses=c.expenses||[]; state.budget=c.budget||null; render(); } catch{} }
     const d = await api('list');
-    state.bookings = d.bookings; state.summary = d.summary; state.reminders = d.reminders || null; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary, reminders:d.reminders}));
+    state.bookings = d.bookings; state.summary = d.summary; state.reminders = d.reminders || null; state.expenses = d.expenses || []; state.budget = d.budget || null; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary, reminders:d.reminders, expenses:d.expenses, budget:d.budget}));
+    if (state.view==='budget') renderBudget();
     $('#setupBox').hidden = true;
     render();
     if (!silent) toast('עודכן ✓');
@@ -424,7 +443,8 @@ function card(b) {
     el('div',{class:'c-dates'}, `${fmtD(b.checkIn)} ← ${fmtD(b.checkOut)}`, el('span',{class:'n'}, `${b.nights||'?'} לילות`)),
     el('div',{class:'c-foot'},
       el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency),
-        el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : '')),
+        el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : ''),
+        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}`) : null),
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
@@ -464,6 +484,78 @@ function renderArchive() {
   });
 }
 
+/* ====== תקציב ====== */
+function renderBudget() {
+  const box=$('#budget'); box.innerHTML='';
+  const B = state.budget || { hotelsIls:0, extrasIls:0, byCategory:{}, expensesIls:0, totalIls:0, targetBudget:0 };
+  const target = Number(B.targetBudget || get(LS.budget) || 0);
+  const rows = [['🏨','מלונות', B.hotelsIls], ['🛏','תוספות במלון', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
+  const hero = el('div',{class:'bcard main'},
+    el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'סה״כ הטיול עד עכשיו')),
+    target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
+    target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : el('button',{class:'restore',onclick:openSettings},'⚙ הגדר תקציב יעד'),
+    el('div',{class:'b-rows'}, ...rows.map(([i,l,v])=>el('div',{class:'b-row'}, el('span',{}, i+' '+l), el('b',{}, fmtN(v)+' ₪'), el('i',{style:`width:${B.totalIls?Math.round(100*v/B.totalIls):0}%`}))))
+  );
+  box.append(hero);
+  const exps = [...state.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  box.append(el('div',{class:'b-head'}, el('h3',{},'הוצאות'), el('span',{class:'hint'}, exps.length?`${exps.length} רשומות · ${fmtN(B.expensesIls)} ₪`:'')));
+  if (!exps.length) { box.append(el('div',{class:'empty', style:'padding:24px 16px'}, el('b',{},'✈️'), 'עוד אין הוצאות. הוסף טיסות, משיכות מזומן ועוד עם +, או אמור לרוברט "משכתי 500 דולר בכספומט".')); return; }
+  const list = el('div',{class:'list'});
+  exps.forEach(e => list.append(el('div',{class:'card exp', onclick:()=>openExpenseDetail(e)},
+    el('div',{class:'c-head'}, el('div',{}, el('div',{class:'c-title'}, catIcon(e.category)+' '+(e.title||e.category)), el('div',{class:'c-sub'}, [e.route, e.date?fmtD(e.date,true)+(e.date2?' ← '+fmtD(e.date2,true):''):'', e.account?'👤 '+e.account:''].filter(Boolean).join(' · '))),
+      el('div',{class:'price', style:'font-size:18px'}, e.priceIls!==''&&e.priceIls!=null?fmtN(e.priceIls)+' ₪':money(e.price,e.currency), (e.currency&&e.currency!=='ILS')?el('small',{},money(e.price,e.currency)):null)))));
+  box.append(list);
+}
+function openExpenseDetail(e) {
+  const kv = (l,v,full) => el('div',{class:full?'full':''}, el('label',{},l), el('span',{}, v==null||v===''?'—':v));
+  openSheet(el('div',{},
+    el('h2',{}, catIcon(e.category)+' '+(e.title||e.category)),
+    el('div',{class:'kv'},
+      kv('קטגוריה', e.category), kv('תאריך', e.date?fmtD(e.date,true):'—'),
+      e.date2 ? kv('תאריך חזור', fmtD(e.date2,true)) : null, e.route ? kv('מסלול', e.route) : null,
+      kv('מחיר', money(e.price,e.currency)), kv('בשקלים', e.priceIls!==''?fmtN(e.priceIls)+' ₪':'—'),
+      kv('יוזר', e.account), kv('מספר הזמנה', e.confirmation),
+      e.notes ? kv('הערות', e.notes, true) : null,
+      kv('נוסף', (e.createdAt||'').replace('T',' ').slice(0,16)+(e.source?' · '+e.source:''), true)),
+    el('div',{class:'actions'},
+      el('button',{class:'btn primary', onclick:()=>openExpenseForm(e)}, '✏️ עריכה'),
+      el('button',{class:'btn danger', onclick:async()=>{ if(!confirm('למחוק את ההוצאה "'+(e.title||e.category)+'"?')) return; try{ await api('deleteExpense',{id:e.id},'POST'); toast('נמחק'); closeSheet(); await load(true); renderBudget(); }catch(err){toast(err.message,true);} }}, '🗑 מחיקה'))
+  ));
+}
+function openExpenseForm(e={}) {
+  const isEdit = !!e.id;
+  const f = (label, name, type='text', extra={}) => el('div',{class:'f'+(extra.full?' full':'')}, el('label',{},label), el('input',{type, name, value:e[name]??'', ...(extra.attrs||{})}));
+  const catSel = el('select',{name:'category'}, ...EXP_CATS.map(([c,i])=>el('option',{value:c, selected:(e.category||'טיסה')===c}, i+' '+c)));
+  const curSel = el('select',{name:'currency'}, ...CURRENCIES.map(c=>el('option',{value:c, selected:(e.currency||'ILS')===c}, c)));
+  const flightRow = el('div',{class:'row'}, f('מסלול (למשל TLV → BKK)','route'), f('תאריך חזור (אם כלול)','date2','date'));
+  const upd = () => { flightRow.hidden = catSel.value!=='טיסה'; };
+  catSel.onchange = upd;
+  const form = el('form',{onsubmit: async ev => {
+    ev.preventDefault();
+    const expense = Object.fromEntries(new FormData(form).entries());
+    if (expense.price==='') return toast('חסר מחיר', true);
+    const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
+    try {
+      if (isEdit) { await api('updateExpense',{id:e.id, expense},'POST'); toast('עודכן ✓'); }
+      else { await api('addExpense',{expense},'POST'); toast('נוסף ✓'); }
+      if (expense.account) set(LS.account, expense.account);
+      closeSheet(); await load(true); renderBudget();
+    } catch(err) { toast(err.message,true); } finally { btn.disabled=false; }
+  }},
+    el('h2',{}, isEdit?'עריכת הוצאה':'הוצאה חדשה'),
+    el('div',{class:'row'}, el('div',{class:'f'}, el('label',{},'קטגוריה'), catSel), f('תאריך','date','date')),
+    f('תיאור','title','text',{full:true, attrs:{placeholder:'למשל: טיסה אל-על תל אביב–בנגקוק / כספומט קופנגן'}}),
+    flightRow,
+    el('div',{class:'row'}, f('מחיר','price','number',{attrs:{step:'0.01',inputmode:'decimal',required:true}}), el('div',{class:'f'}, el('label',{},'מטבע'), curSel)),
+    el('div',{class:'row'}, f('בשקלים (ריק = אוטומטי)','priceIls','number',{attrs:{inputmode:'numeric'}}), f('יוזר','account','text',{attrs:{list:'accounts', value:e.account??get(LS.account)}})),
+    f('מספר הזמנה / אסמכתא','confirmation','text',{full:true}),
+    el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, e.notes||'')),
+    el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'submit',class:'btn primary'}, isEdit?'שמירה':'הוספה'))
+  );
+  const dl=$('#accounts'); dl.innerHTML=''; [...new Set([...USERS, ...state.bookings.map(x=>x.account).filter(Boolean)])].forEach(u=>dl.append(el('option',{value:u})));
+  upd(); openSheet(form);
+}
+
 /* ====== Bottom sheet ====== */
 function openSheet(node) { const b=$('#sheetBody'); b.innerHTML=''; b.append(node); $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0; document.body.style.overflow='hidden'; }
 function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); document.body.style.overflow=''; }
@@ -483,6 +575,7 @@ function openDetail(b) {
       kv('מחיר ללילה', (b.priceIls!==''&&b.nights>0)?fmtN(b.priceIls/b.nights)+' ₪':'—', false),
       kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':(b.paymentDate?'עוד לא':'לא / בתשלום במלון')),
       kv('מועד חיוב', b.paymentDate?fmtD(b.paymentDate,true):'—'),
+      (b.extraPrice!==''&&b.extraPrice!=null) ? kv('תוספת במלון'+(b.extraNote?' · '+b.extraNote:''), money(b.extraPrice,b.currency)+(b.extraIls!==''&&b.currency!=='ILS'?' ≈ '+fmtN(b.extraIls)+' ₪':''), true) : null,
       el('div',{class:'full'}, el('label',{},'ביטול חינם'), el('span',{class:'tag '+ci.cls}, ci.txt)),
       kv('מספר הזמנה', b.confirmation), kv('יוזר / חשבון', b.account),
       b.notes ? kv('הערות', b.notes, true) : null,
@@ -529,6 +622,7 @@ function openForm(b={}, replacing=null) {
     sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
     sw('💳 שולם מראש', ()=>paid, v=>paid=v),
     f('מועד חיוב (מתי יורד התשלום)','paymentDate','date',{full:true}),
+    el('div',{class:'row'}, f('תוספת שתשולם במלון (באותו מטבע)','extraPrice','number',{attrs:{step:'0.01',inputmode:'decimal',placeholder:'למשל מיטה נוספת'}}), f('על מה התוספת','extraNote','text',{attrs:{placeholder:'מיטה נוספת / ילד'}})),
     el('div',{class:'row'}, f('סוג החדר','roomType'), f('מספר הזמנה','confirmation')),
     el('div',{class:'row'}, f('יוזר (צחי / שירן)','account','text',{attrs:{value:b.account??get(LS.account), list:'accounts', placeholder:'צחי'}}), f('קישור להזמנה','link','url')),
     el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, b.notes||'')),
@@ -551,6 +645,7 @@ function openSettings() {
     inp('כתובת ה-Web App (Apps Script)', LS.api, 'https://script.google.com/macros/s/…/exec','url'),
     inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
     inp('יעד לילות לטיול', LS.target, '21','number'),
+    inp('תקציב כולל לטיול (₪, לא חובה)', LS.budget, 'למשל 60000','number'),
     el('div',{class:'f'}, el('label',{},'🔔 תזכורות טלגרם לפני סיום ביטול חינם'), el('div',{class:'hint', style:'background:#f8fafc;border-radius:12px;padding:10px 12px;line-height:1.5'},
       (state.reminders&&state.reminders.active) ? `פעילות ✓ נשלחות ${state.reminders.days.join('/')} ימים לפני, בשעה 09:00.` :
       'לא מוגדרות. בעורך Apps Script של הגיליון: ⚙ הגדרות הפרויקט → Script properties → להוסיף TELEGRAM_BOT_TOKEN ו-TELEGRAM_CHAT_ID (431692318), ואז להריץ installTriggers() ו-sendTestReminder(). ברירת מחדל: 14, 7, 3, 1, 0 ימים לפני (REMINDER_DAYS).')),
@@ -558,20 +653,21 @@ function openSettings() {
     el('button',{type:'button', class:'textbtn', onclick:()=>{ closeSheet(); load(); if (state.view==='history') loadHistory(); if (state.view==='archive') loadArchive(); }}, '⟳ רענון'),
     el('div',{class:'actions'},
       el('button',{class:'btn', onclick:async()=>{ save(); try{ const u=new URL(API()); u.searchParams.set('action','ping'); const r=await (await fetch(u)).json(); if(r.ok){ await api('list'); toast('החיבור תקין ✓'); } else toast('אין תגובה תקינה',true);}catch(e){toast('נכשל: '+e.message,true);} }}, '🔌 בדיקת חיבור'),
-      el('button',{class:'btn primary', onclick:async()=>{ save(); closeSheet(); const t=Number(get(LS.target)||21); try{ await api('setTarget',{nights:t},'POST'); }catch{} await load(); }}, 'שמירה'))
+      el('button',{class:'btn primary', onclick:async()=>{ save(); closeSheet(); const t=Number(get(LS.target)||21); try{ await api('setTarget',{nights:t},'POST'); await api('setBudget',{ils:Number(get(LS.budget)||0)},'POST'); }catch{} await load(); }}, 'שמירה'))
   );
-  const save = () => { set(LS.api, $('#st_'+LS.api).value.trim()); set(LS.token, $('#st_'+LS.token).value.trim()); set(LS.target, $('#st_'+LS.target).value.trim()||'21'); };
+  const save = () => { set(LS.api, $('#st_'+LS.api).value.trim()); set(LS.token, $('#st_'+LS.token).value.trim()); set(LS.target, $('#st_'+LS.target).value.trim()||'21'); set(LS.budget, $('#st_'+LS.budget).value.trim()||''); };
   openSheet(box);
 }
 
 /* ====== אירועים ====== */
-$('#fab').onclick = () => openForm();
+$('#fab').onclick = () => state.view==='budget' ? openExpenseForm() : openForm();
 $('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings;
 $('#q').oninput = e => { state.q = e.target.value; $('#qClear').hidden = !state.q; render(); };
 $('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').hidden = true; render(); };
 document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===t));
-  state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewArchive').hidden = state.view!=='archive'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = state.view!=='list';
+  state.view = t.dataset.view; $('#viewList').hidden = state.view!=='list'; $('#viewBudget').hidden = state.view!=='budget'; $('#viewArchive').hidden = state.view!=='archive'; $('#viewHistory').hidden = state.view!=='history'; $('#fab').hidden = !(state.view==='list'||state.view==='budget');
+  if (state.view==='budget') renderBudget();
   if (state.view==='history') loadHistory();
   if (state.view==='archive') loadArchive();
 });
