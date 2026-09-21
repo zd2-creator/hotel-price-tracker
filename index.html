@@ -213,7 +213,7 @@ button.pill::before{content:"";position:absolute;inset:-5px}
     <div class="bar"><i id="bar"></i></div>
     <div class="stat-row">
       <span>🏨 מלונות: <b id="sTotal">–</b></span><span class="sep">·</span>
-      <span><b id="sAvg">–</b> ממוצע ללילה</span><span class="sep">·</span>
+      <span><b id="sAvg">–</b> ממוצע ללילה</span><span id="sAvgExtra" hidden><span class="sep">·</span><b id="sAvgX">–</b> כולל תוספות</span><span class="sep">·</span>
       <span><b id="sCount">–</b> מלונות</span>
     </div>
     <div class="grand" id="grandRow" hidden><span class="g-label">💰 סה״כ הוצאות הטיול</span><b id="sGrand">–</b><span class="g-sub" id="sGrandSub"></span></div>
@@ -383,6 +383,7 @@ function render() {
   $('#sTarget').textContent = target;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
   $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
+  const HX = Number(S.hotelsIls)||0; $('#sAvgExtra').hidden = !(S.nights>0 && HX>Number(S.totalIls)); $('#sAvgX').textContent = S.nights>0 ? fmtN(HX/S.nights)+' ₪' : '–';
   const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
   const parts = [['מלונות', Number(B0.hotelsIls)||0], ['תוספות', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
   $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
@@ -467,7 +468,7 @@ function card(b) {
     el('div',{class:'c-foot'},
       el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency),
         el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : ''),
-        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}`) : null),
+        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}${b.nights>0&&b.priceIls!==''?' → '+fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ ללילה':''}`) : null),
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
@@ -596,6 +597,7 @@ function openDetail(b) {
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),
       kv('מחיר ששולם', money(b.price,b.currency)), kv('בשקלים', b.priceIls!==''?fmtN(b.priceIls)+' ₪':'—'),
       kv('מחיר ללילה', (b.priceIls!==''&&b.nights>0)?fmtN(b.priceIls/b.nights)+' ₪':'—', false),
+      (Number(b.extraIls)>0&&b.nights>0&&b.priceIls!=='') ? kv('ללילה כולל תוספת', fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ (סה״כ '+fmtN(Number(b.priceIls)+Number(b.extraIls))+' ₪)', false) : null,
       kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':(b.paymentDate?'עוד לא':'לא / בתשלום במלון')),
       kv('מועד חיוב', b.paymentDate?fmtD(b.paymentDate,true):'—'),
       (b.extraPrice!==''&&b.extraPrice!=null) ? kv('תוספת במלון'+(b.extraNote?' · '+b.extraNote:''), money(b.extraPrice,b.currency)+(b.extraIls!==''&&b.currency!=='ILS'?' ≈ '+fmtN(b.extraIls)+' ₪':''), true) : null,
