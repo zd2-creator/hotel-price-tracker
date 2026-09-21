@@ -274,7 +274,7 @@ function syncSummary_() {
   rows.push(['סה"כ הטיול ₪', B.totalIls]);
   rows.push(['תקציב יעד ₪', B.targetBudget || '']);
   rows.push(['נשאר ₪', B.targetBudget ? B.targetBudget - B.totalIls : '']);
-  rows.push(['ממוצע ללילה ₪', sum.nights ? Math.round(sum.totalIls / sum.nights) : '']);
+  rows.push(['ממוצע ללילה ₪ (כולל תוספות)', sum.nights ? Math.round(sum.hotelsIls / sum.nights) : '']);
   rows.push(['עודכן', now_()]);
   sh.clearContents();
   sh.getRange(1, 1, rows.length, 2).setValues(rows);

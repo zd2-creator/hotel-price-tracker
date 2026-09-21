@@ -213,7 +213,7 @@ button.pill::before{content:"";position:absolute;inset:-5px}
     <div class="bar"><i id="bar"></i></div>
     <div class="stat-row">
       <span>🏨 מלונות: <b id="sTotal">–</b></span><span class="sep">·</span>
-      <span><b id="sAvg">–</b> ממוצע ללילה</span><span id="sAvgExtra" hidden><span class="sep">·</span><b id="sAvgX">–</b> כולל תוספות</span><span class="sep">·</span>
+      <span><b id="sAvg">–</b> ממוצע ללילה</span><span id="sAvgExtra" hidden> (כולל תוספות · <b id="sAvgX">–</b> בלעדיהן)</span><span class="sep">·</span>
       <span><b id="sCount">–</b> מלונות</span>
     </div>
     <div class="grand" id="grandRow" hidden><span class="g-label">💰 סה״כ הוצאות הטיול</span><b id="sGrand">–</b><span class="g-sub" id="sGrandSub"></span></div>
@@ -382,8 +382,9 @@ function render() {
   $('#sNights').textContent = S.nights;
   $('#sTarget').textContent = target;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
-  $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
-  const HX = Number(S.hotelsIls)||0; $('#sAvgExtra').hidden = !(S.nights>0 && HX>Number(S.totalIls)); $('#sAvgX').textContent = S.nights>0 ? fmtN(HX/S.nights)+' ₪' : '–';
+  const HX = Number(S.hotelsIls)||Number(S.totalIls)||0; // ממוצע ללילה כולל תוספות במלון
+  $('#sAvg').textContent = S.nights>0 ? fmtN(HX/S.nights) + ' ₪' : '–';
+  $('#sAvgExtra').hidden = !(S.nights>0 && HX>Number(S.totalIls)); $('#sAvgX').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights)+' ₪' : '–';
   const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
   const parts = [['מלונות', Number(B0.hotelsIls)||0], ['תוספות', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
   $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
@@ -417,7 +418,7 @@ function render() {
   if (!state.bookings.length) { list.append(el('div',{class:'empty'}, el('b',{},'🧳'), 'עוד אין הזמנות.', el('div',{}, el('button',{type:'button', class:'btn primary', onclick:()=>openForm()}, '➕ הוספת הזמנה ראשונה')), el('div',{class:'hint'}, 'או שלח לרוברט צילום מסך של ההזמנה'))); return; }
   if (!arr.length) { list.append(el('div',{class:'empty'}, el('b',{},'🔍'), 'אין תוצאות לסינון הזה.')); return; }
   const fn = distinctNights(arr); const rn = arr.reduce((n,b)=>n+(Number(b.nights)||0),0);
-  const fils = arr.reduce((n,b)=>n+(Number(b.priceIls)||0),0);
+  const fils = arr.reduce((n,b)=>n+(Number(b.priceIls)||0)+(Number(b.extraIls)||0),0);
   list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות${rn>fn?' ('+rn+' לילות-חדר)':''} · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
 
   let prev = null;
