@@ -33,6 +33,7 @@ var COLS = [
   ['priceIls', 'המרה לשקל', 'num'],
   ['freeCancelUntil', 'ביטול חינם עד', 'date'],
   ['paid', 'שולם', 'bool'],
+  ['paymentDate', 'מועד חיוב', 'date'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
@@ -69,19 +70,30 @@ function setup() {
   Logger.log('הטאבים מוכנים. עכשיו: פריסה → פריסה חדשה → אפליקציית אינטרנט.');
 }
 
+/** מוודא שכל הכותרות קיימות; עמודות חסרות מתווספות בסוף (סדר העמודות לא משנה — הגישה לפי שם כותרת). */
 function writeHeader_(sh, cols) {
   var headers = cols.map(function (c) { return c[1]; });
-  var existing = sh.getLastRow() >= 1 ? sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0] : [];
-  var same = existing.length >= headers.length && headers.every(function (h, i) { return existing[i] === h; });
-  if (!same && sh.getLastRow() > 1) throw new Error('הטאב "' + sh.getName() + '" מכיל נתונים עם כותרות שונות. גבה אותו/מחק לפני setup().');
-  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setBackground('#e8f0fe');
+  var lastCol = sh.getLastColumn();
+  var existing = (sh.getLastRow() >= 1 && lastCol > 0) ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
+  while (existing.length && existing[existing.length - 1] === '') existing.pop();
+  var missing = headers.filter(function (h) { return existing.indexOf(h) < 0; });
+  if (existing.length === 0) { sh.getRange(1, 1, 1, headers.length).setValues([headers]); existing = headers.slice(); }
+  else if (missing.length) { sh.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]); existing = existing.concat(missing); }
+  sh.getRange(1, 1, 1, existing.length).setFontWeight('bold').setBackground('#e8f0fe');
   sh.setFrozenRows(1);
   sh.setRightToLeft(true);
   // עמודות טקסט לתאריכים ומזהים כדי שהגיליון לא "יתקן" אותם
-  cols.forEach(function (c, i) {
-    if (c[2] === 'date' || c[2] === 'text') sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+  cols.forEach(function (c) {
+    var i = existing.indexOf(c[1]);
+    if (i >= 0 && (c[2] === 'date' || c[2] === 'text')) sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   });
-  sh.autoResizeColumns(1, headers.length);
+  return existing;
+}
+var HEADER_CACHE_ = {};
+function headerOf_(sh, cols) {
+  var key = sh.getSheetId();
+  if (!HEADER_CACHE_[key]) HEADER_CACHE_[key] = writeHeader_(sh, cols);
+  return HEADER_CACHE_[key];
 }
 
 function installTriggers() {
@@ -194,7 +206,7 @@ function archiveSheet_() {
 function archive_(rec, action, by, note) {
   var row = {}; ARCHIVE_COLS.forEach(function (c) { row[c[0]] = rec[c[0]] === undefined ? '' : rec[c[0]]; });
   row.archivedAt = now_(); row.archiveAction = action; row.archivedBy = by || ''; row.archiveNote = note || '';
-  archiveSheet_().appendRow(toRow_(row, ARCHIVE_COLS));
+  var ash = archiveSheet_(); ash.appendRow(toRow_(row, ARCHIVE_COLS, ash));
 }
 function listArchive_() { return readAll_(archiveSheet_(), ARCHIVE_COLS); }
 function findArchived_(id) {
@@ -205,15 +217,17 @@ function findArchived_(id) {
 
 function readAll_(sh, cols) {
   if (!sh || sh.getLastRow() < 2) return [];
-  var values = sh.getRange(2, 1, sh.getLastRow() - 1, cols.length).getValues();
+  var header = headerOf_(sh, cols);
+  var values = sh.getRange(2, 1, sh.getLastRow() - 1, header.length).getValues();
+  var idx = {}; cols.forEach(function (c) { idx[c[0]] = header.indexOf(c[1]); });
   var out = [];
   values.forEach(function (row, i) {
     var r = { _row: i + 2 }, empty = true;
-    cols.forEach(function (c, j) {
-      var v = row[j];
+    cols.forEach(function (c) {
+      var v = idx[c[0]] >= 0 ? row[idx[c[0]]] : '';
       if (c[2] === 'date') v = normDate_(v);
       else if (c[2] === 'bool') v = normBool_(v);
-      else if (v instanceof Date) v = Utilities.formatDate(v, 'Asia/Jerusalem', ['ts', 'createdAt', 'updatedAt'].indexOf(c[0]) >= 0 ? "yyyy-MM-dd'T'HH:mm:ss" : 'yyyy-MM-dd');
+      else if (v instanceof Date) v = Utilities.formatDate(v, 'Asia/Jerusalem', ['ts', 'createdAt', 'updatedAt', 'archivedAt'].indexOf(c[0]) >= 0 ? "yyyy-MM-dd'T'HH:mm:ss" : 'yyyy-MM-dd');
       r[c[0]] = v;
       if (v !== '' && v !== null && v !== false) empty = false;
     });
@@ -221,7 +235,17 @@ function readAll_(sh, cols) {
   });
   return out;
 }
-function toRow_(r, cols) { return cols.map(function (c) { var v = r[c[0]]; if (v === undefined || v === null) return ''; if (c[2] === 'bool') return v ? 'כן' : 'לא'; return v; }); }
+/** שורה בסדר העמודות של הגיליון (לפי כותרות) */
+function toRow_(r, cols, sh) {
+  var header = headerOf_(sh, cols);
+  var byHeader = {}; cols.forEach(function (c) { byHeader[c[1]] = c; });
+  return header.map(function (h) {
+    var c = byHeader[h]; if (!c) return '';
+    var v = r[c[0]]; if (v === undefined || v === null) return '';
+    if (c[2] === 'bool') return v ? 'כן' : 'לא';
+    return v;
+  });
+}
 
 function listBookings_() { return readAll_(bookingsSheet_(), COLS).map(function (r) { delete r._row; return r; }); }
 
@@ -235,11 +259,11 @@ function logHistory_(action, by, note, rec) {
   var h = historySheet_();
   var row = { ts: now_(), action: action, by: by || '', note: note || '' };
   COLS.forEach(function (c) { row[c[0]] = rec ? rec[c[0]] : ''; });
-  h.appendRow(toRow_(row, HISTORY_COLS));
+  h.appendRow(toRow_(row, HISTORY_COLS, h));
 }
 
-function appendBooking_(rec) { bookingsSheet_().appendRow(toRow_(rec, COLS)); }
-function writeBooking_(rowNum, rec) { bookingsSheet_().getRange(rowNum, 1, 1, COLS.length).setValues([toRow_(rec, COLS)]); }
+function appendBooking_(rec) { var sh = bookingsSheet_(); sh.appendRow(toRow_(rec, COLS, sh)); }
+function writeBooking_(rowNum, rec) { var sh = bookingsSheet_(); var row = toRow_(rec, COLS, sh); sh.getRange(rowNum, 1, 1, row.length).setValues([row]); }
 function deleteRow_(rowNum) { bookingsSheet_().deleteRow(rowNum); }
 
 function remindersStatus_() {
@@ -247,7 +271,7 @@ function remindersStatus_() {
   var days = (props_().getProperty('REMINDER_DAYS') || '14,7,3,1,0').split(',').map(function (x) { return Number(x.trim()); }).filter(function (n) { return !isNaN(n); });
   var installed = false;
   try { installed = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyReminders'; }); } catch (e) { }
-  return { configured: !!(token && chat), triggerInstalled: installed, active: !!(token && chat) && installed, days: days, hour: 9 };
+  return { configured: !!(token && chat), triggerInstalled: installed, active: !!(token && chat) && installed, days: days, paymentDays: [7, 1, 0], hour: 9 };
 }
 
 function summary_(list) {
@@ -387,6 +411,15 @@ function dailyReminders() {
     if (thresholds.indexOf(days) >= 0) {
       lines.push((days === 0 ? '🔴 היום' : days === 1 ? '🟠 מחר' : '⏰ בעוד ' + days + ' ימים') + ' נגמר הביטול החינמי: *' + r.hotel + '* (' + r.platform + (r.account ? ', יוזר ' + r.account : '') + ', ' + r.destination + ')\n' +
         r.checkIn + ' → ' + r.checkOut + ' · ' + r.nights + ' לילות · ' + (r.priceIls ? r.priceIls + ' ₪' : r.price + ' ' + r.currency) + (r.confirmation ? ' · #' + r.confirmation : ''));
+    }
+  });
+  listBookings_().forEach(function (r) {
+    if (!r.paymentDate || r.paid) return;
+    var d = new Date(r.paymentDate + 'T00:00:00Z');
+    var days = Math.round((d - today) / 86400000);
+    if ([7, 1, 0].indexOf(days) >= 0) {
+      lines.push((days === 0 ? '💳 היום' : days === 1 ? '💳 מחר' : '💳 בעוד ' + days + ' ימים') + ' יורד התשלום: *' + r.hotel + '* (' + r.platform + (r.account ? ', יוזר ' + r.account : '') + ')\n' +
+        (r.priceIls ? r.priceIls + ' ₪' : r.price + ' ' + r.currency) + (r.confirmation ? ' · #' + r.confirmation : ''));
     }
   });
   if (!lines.length) return;

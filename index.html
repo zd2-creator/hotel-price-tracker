@@ -239,7 +239,7 @@ const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
 const USERS = ['צחי','שירן']; // יוזרים קבועים לבחירה מהירה (אפשר להקליד גם אחר)
-const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם']];
+const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם'],['paySoon','💳 חיוב ב-14 יום הקרובים']];
 const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
@@ -319,6 +319,7 @@ function filtered() {
     if (f.misc.has('cancelSoon') && ci!=='soon') return false;
     if (f.misc.has('noCancel') && !(ci==='none'||ci==='past')) return false;
     if (f.misc.has('unpaid') && b.paid) return false;
+    if (f.misc.has('paySoon') && !(b.paymentDate && !b.paid && daysUntil(b.paymentDate)>=0 && daysUntil(b.paymentDate)<=14)) return false;
     if (q && ![b.hotel,b.destination,b.confirmation,b.platform,b.account,b.roomType,b.notes].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -421,7 +422,7 @@ function card(b) {
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
-        b.paid ? el('span',{class:'tag info'},'💳 שולם') : null,
+        b.paid ? el('span',{class:'tag info'},'💳 שולם') : b.paymentDate ? el('span',{class:'tag '+(daysUntil(b.paymentDate)<=7&&daysUntil(b.paymentDate)>=0?'warn':daysUntil(b.paymentDate)<0?'bad':'')}, '💳 חיוב '+fmtD(b.paymentDate,true)) : null,
         b.account ? el('span',{class:'tag'}, '👤 '+b.account) : null))
   );
   return c;
@@ -473,7 +474,8 @@ function openDetail(b) {
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),
       kv('מחיר ששולם', money(b.price,b.currency)), kv('בשקלים', b.priceIls!==''?fmtN(b.priceIls)+' ₪':'—'),
       kv('מחיר ללילה', (b.priceIls!==''&&b.nights>0)?fmtN(b.priceIls/b.nights)+' ₪':'—', false),
-      kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':'לא / בתשלום במלון'),
+      kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':(b.paymentDate?'עוד לא':'לא / בתשלום במלון')),
+      kv('מועד חיוב', b.paymentDate?fmtD(b.paymentDate,true):'—'),
       el('div',{class:'full'}, el('label',{},'ביטול חינם'), el('span',{class:'tag '+ci.cls}, ci.txt)),
       kv('מספר הזמנה', b.confirmation), kv('יוזר / חשבון', b.account),
       b.notes ? kv('הערות', b.notes, true) : null,
@@ -519,6 +521,7 @@ function openForm(b={}, replacing=null) {
     el('div',{class:'row'}, f('בשקלים (ריק = חישוב אוטומטי)','priceIls','number',{attrs:{step:'1',inputmode:'numeric'}}), f('ביטול חינם עד','freeCancelUntil','date')),
     sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
     sw('💳 שולם מראש', ()=>paid, v=>paid=v),
+    f('מועד חיוב (מתי יורד התשלום)','paymentDate','date',{full:true}),
     el('div',{class:'row'}, f('סוג החדר','roomType'), f('מספר הזמנה','confirmation')),
     el('div',{class:'row'}, f('יוזר (צחי / שירן)','account','text',{attrs:{value:b.account??get(LS.account), list:'accounts', placeholder:'צחי'}}), f('קישור להזמנה','link','url')),
     el('div',{class:'f full'}, el('label',{},'הערות'), el('textarea',{name:'notes'}, b.notes||'')),

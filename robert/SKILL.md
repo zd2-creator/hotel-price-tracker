@@ -32,13 +32,14 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" \
 | currency | ILS / USD / EUR / THB … | `ILS` |
 | priceIls | בשקלים — להשאיר ריק אם המטבע אינו ILS (השרת ממיר לבד) | |
 | freeCancelUntil | ביטול חינם עד `YYYY-MM-DD` (ריק = לא ניתן לביטול) | `2027-08-04` |
-| paid | true אם שולם מראש, false אם תשלום במלון | `false` |
+| paid | true אם כבר שולם, false אם עוד לא | `false` |
+| paymentDate | **מתי יורד התשלום** `YYYY-MM-DD` — בוקינג: "You'll be charged on …" / "Payment due …", אגודה: "Pay later – charged on …", אקספדיה: "Pay at property" = ריק. ריק גם אם לא כתוב | `2027-08-04` |
 | confirmation | מספר הזמנה/אישור | `4512.887.334` |
 | link | קישור להזמנה אם יש | |
 | notes | כל דבר נוסף (PIN, שעת הגעה, מדיניות ביטול חלקית) | |
 
 ## זרימת עבודה כשזכי שולח צילום מסך של הזמנה
-1. **קרא מהתמונה** את כל השדות למעלה. שים לב במיוחד ל: שם המלון המדויק, תאריכים (בוקינג מציג "Wed, 11 Aug 2027"), "Free cancellation until/before <date>" (בוקינג לרוב מציג עד שעה מסוימת — קח את התאריך), "Breakfast included" / "Breakfast not included", הסכום הסופי (Total price) והמטבע, מספר ההזמנה (Confirmation number / Booking ID / Itinerary number).
+1. **קרא מהתמונה** את כל השדות למעלה. שים לב במיוחד ל: שם המלון המדויק, תאריכים (בוקינג מציג "Wed, 11 Aug 2027"), "Free cancellation until/before <date>" (בוקינג לרוב מציג עד שעה מסוימת — קח את התאריך), "Breakfast included" / "Breakfast not included", **מועד החיוב** ("charged on", "payment due", "תשלום ב-"), הסכום הסופי (Total price) והמטבע, מספר ההזמנה (Confirmation number / Booking ID / Itinerary number).
 2. **יוזר:** זכי אומר יחד עם התמונה מאיזה יוזר הזמין ("זה מהיוזר של שירן"). אם לא ציין — שאל "מאיזה יוזר, צחי או שירן?" לפני השמירה. הערך נשמר בשדה `account` בדיוק כך: `צחי` / `שירן`.
 3. **חובה לפני שמירה:** הצג לזכי סיכום קצר של מה זיהית (מלון, פלטפורמה, תאריכים, לילות, מחיר, ביטול עד, א.בוקר) ושאל אם לשמור — **אלא אם** הוא כבר כתב במפורש "תוסיף"/"תשמור" יחד עם התמונה, ואז שמור מיד ודווח.
 4. שלח `upsert`:
@@ -47,7 +48,7 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" -d '{
   "token":"__API_TOKEN__","action":"upsert","by":"robert",
   "booking":{"hotel":"...","destination":"...","platform":"Booking","checkIn":"2027-08-11","checkOut":"2027-08-18",
              "roomType":"...","breakfast":true,"price":6091,"currency":"ILS","freeCancelUntil":"2027-08-04",
-             "paid":false,"confirmation":"...","account":"שירן","notes":"..."}
+             "paid":false,"paymentDate":"2027-08-04","confirmation":"...","account":"שירן","notes":"..."}
 }'
 ```
    - `upsert` מחפש הזמנה **פעילה קיימת לאותו מלון**:
@@ -69,7 +70,7 @@ curl -sL -X POST "__API_URL__" -H "Content-Type: text/plain" -d '{
 - **חיפוש id** של מלון: קח מ-`list` לפי שם המלון (התאמה חלקית, לא רגיש לאותיות).
 
 ## תזכורות ביטול
-המערכת (Apps Script) שולחת לזכי בטלגרם תזכורת 14/7/3/1/0 ימים לפני סיום ביטול חינם, ב-09:00. זה לא דרכך. אם זכי שואל "מתי נגמר הביטול של X" — קח מ-`list` את `freeCancelUntil` וחשב ימים.
+המערכת (Apps Script) שולחת לזכי בטלגרם תזכורת 14/7/3/1/0 ימים לפני סיום ביטול חינם, ו-7/1/0 ימים לפני מועד החיוב, ב-09:00. זה לא דרכך. אם זכי שואל "מתי נגמר הביטול של X" — קח מ-`list` את `freeCancelUntil` וחשב ימים.
 
 ## כללים
 - תאריכים תמיד `YYYY-MM-DD`. שנת הטיול היא 2027 אלא אם כתוב אחרת.
