@@ -45,8 +45,10 @@ b,strong{font-weight:700}
 .stat-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:8px;font-size:13px;color:rgba(255,255,255,.78);white-space:nowrap;font-variant-numeric:tabular-nums}
 .stat-row b{font-size:14px;font-weight:700;color:#fff}
 .stat-row .sep{color:rgba(255,255,255,.35)}
-.stat-row.grand{display:inline-flex;width:fit-content;max-width:100%;margin-top:10px;gap:6px;min-height:32px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.12);font-size:13px;color:rgba(255,255,255,.9)}
-.stat-row.grand b{font-size:14px}
+.grand{margin-top:12px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.16);display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 10px;font-variant-numeric:tabular-nums}
+.grand .g-label{font-size:13px;font-weight:600;opacity:.95}
+.grand b{grid-row:1/3;font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1}
+.grand .g-sub{font-size:11.5px;opacity:.78}
 
 /* filters */
 .tools{padding:12px 16px 0}
@@ -209,11 +211,11 @@ button.pill::before{content:"";position:absolute;inset:-5px}
     <div class="hero"><b id="sNights">–</b><span>מתוך <span id="sTarget">21</span> לילות</span></div>
     <div class="bar"><i id="bar"></i></div>
     <div class="stat-row">
-      <span><b id="sTotal">–</b> סה״כ</span><span class="sep">·</span>
+      <span>🏨 מלונות: <b id="sTotal">–</b></span><span class="sep">·</span>
       <span><b id="sAvg">–</b> ללילה</span><span class="sep">·</span>
       <span><b id="sCount">–</b> מלונות</span>
     </div>
-    <div class="stat-row grand" id="grandRow" hidden><span>💰 סה״כ יצא על הכל:</span><b id="sGrand">–</b></div>
+    <div class="grand" id="grandRow" hidden><span class="g-label">💰 סה״כ הוצאות הטיול</span><b id="sGrand">–</b><span class="g-sub" id="sGrandSub"></span></div>
     <div class="alert-line" id="alertLine" hidden></div>
   </header>
   <div class="tabbar">
@@ -380,7 +382,9 @@ function render() {
   $('#sTarget').textContent = target;
   $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
   $('#sAvg').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights) + ' ₪' : '–';
-  const BT = state.budget && Number(state.budget.totalIls)||0; $('#grandRow').hidden = !(BT && BT !== Number(S.totalIls)); $('#sGrand').textContent = fmtN(BT)+' ₪';
+  const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
+  const parts = [['מלונות', Number(B0.hotelsIls)||0], ['תוספות', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
+  $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
   $('#sCount').textContent = S.count;
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
   // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר (מוסתרת כשהתזכורות פעילות ואין ביטול קרוב)
@@ -507,9 +511,9 @@ function renderBudget() {
   const box=$('#budget'); box.innerHTML='';
   const B = state.budget || { hotelsIls:0, extrasIls:0, byCategory:{}, expensesIls:0, totalIls:0, targetBudget:0 };
   const target = Number(B.targetBudget || get(LS.budget) || 0);
-  const rows = [['🏨','מלונות', B.hotelsIls], ['🛏','תוספות במלון', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
+  const rows = [['🏨','מלונות (הזמנות)', B.hotelsIls], ['🛏','תוספות במלון', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
   const hero = el('div',{class:'bcard main'},
-    el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'סה״כ יצא עד עכשיו · מלונות + כל ההוצאות')),
+    el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'💰 סה״כ הוצאות הטיול · מלונות + הכל')),
     target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
     target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : null,
     el('div',{class:'b-rows'}, ...rows.map(([i,l,v])=>el('div',{class:'b-row'}, el('span',{}, i+' '+l), el('b',{}, fmtN(v)+' ₪'), el('span',{class:'b-track'}, el('i',{style:`width:${B.totalIls?Math.round(100*v/B.totalIls):0}%`})))))
