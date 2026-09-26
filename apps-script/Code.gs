@@ -34,6 +34,7 @@ var COLS = [
   ['freeCancelUntil', 'ביטול חינם עד', 'date'],
   ['paid', 'שולם', 'bool'],
   ['paymentDate', 'מועד חיוב', 'date'],
+  ['backup', 'חלופה', 'bool'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
@@ -273,10 +274,10 @@ function syncSummary_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(SHEET_SUMMARY) || ss.insertSheet(SHEET_SUMMARY);
   var list = listBookings_(); var sum = summary_(list); var exps = listExpenses_(); var B = budget_(sum, exps);
-  var rows = [['סעיף', 'ערך'], ['לילות סגורים', sum.nights + ' מתוך ' + sum.targetNights], ['מלונות (הזמנות)', sum.count], ['מלונות ₪', sum.totalIls], ['תוספות במלון ₪', sum.extrasIls]];
+  var rows = [['סעיף', 'ערך'], ['לילות סגורים', sum.nights + ' מתוך ' + sum.targetNights], ['מלונות (הזמנות)', sum.count + (sum.excluded ? ' (מהן ' + sum.excluded + ' חלופות שלא נספרות)' : '')], ['מלונות ₪', sum.totalIls], ['תוספות במלון ₪', sum.extrasIls]];
   EXP_CATEGORIES.forEach(function (c) { rows.push([c + ' ₪', Math.round(B.byCategory[c] || 0)]); });
-  var paid = 0, left = 0;
-  list.forEach(function (r) { var v = Number(r.priceIls) || 0; if (r.paid) paid += v; else left += v; left += Number(r.extraIls) || 0; });
+  var paid = 0, left = 0; var altsS = computeAlts_(list);
+  list.forEach(function (r) { if (isExcluded_(r, altsS)) return; var v = Number(r.priceIls) || 0; if (r.paid) paid += v; else left += v; left += Number(r.extraIls) || 0; });
   exps.forEach(function (e) { var v = Number(e.priceIls) || 0; if (e.paid === false) left += v; else paid += v; });
   rows.push(['סה"כ הטיול ₪', B.totalIls]);
   rows.push(['שולם ₪', Math.round(paid)]);
@@ -447,11 +448,42 @@ function distinctNights_(list) {
   return total;
 }
 
+/**
+ * חלופות: מלונות שונים בתאריכים חופפים (למשל 2 מלונות בקופנגן 10-13.8) — רק אחד ייסגר בסוף.
+ * הזמנה עם backup=true לא נספרת. אם אף אחת לא סומנה — נספר רק המלון הזול (אוטומטית), והשאר מסומנות "לא נספר".
+ * מחזיר map id → {n, hotels, primary(bool), auto(bool)}
+ */
+function computeAlts_(list) {
+  var cand = list.filter(function (r) { return !r.backup; });
+  var parent = cand.map(function (_, i) { return i; });
+  function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+  for (var i = 0; i < cand.length; i++) for (var j = i + 1; j < cand.length; j++) {
+    if (norm_(cand[i].hotel) !== norm_(cand[j].hotel) && overlaps_(cand[i], cand[j])) parent[find(i)] = find(j);
+  }
+  var comps = {};
+  cand.forEach(function (r, i) { var k = find(i); (comps[k] = comps[k] || []).push(r); });
+  var out = {}, n = 0;
+  Object.keys(comps).forEach(function (k) {
+    var g = comps[k]; if (g.length < 2) return;
+    var byHotel = {};
+    g.forEach(function (r) { var h = norm_(r.hotel); (byHotel[h] = byHotel[h] || { name: r.hotel, cost: 0, rows: [] }); byHotel[h].cost += (Number(r.priceIls) || 0) + (Number(r.extraIls) || 0); byHotel[h].rows.push(r); });
+    var hotels = Object.keys(byHotel); if (hotels.length < 2) return;
+    n++;
+    var primary = hotels.slice().sort(function (a, b) { return byHotel[a].cost - byHotel[b].cost; })[0];
+    hotels.forEach(function (h) { byHotel[h].rows.forEach(function (r) { out[r.id] = { n: n, hotels: hotels.map(function (x) { return byHotel[x].name; }), primary: h === primary, auto: true }; }); });
+  });
+  list.forEach(function (r) { if (r.backup) out[r.id] = { n: 0, hotels: [], primary: false, auto: false }; });
+  return out;
+}
+function isExcluded_(r, alts) { return !!r.backup || !!(alts[r.id] && !alts[r.id].primary); }
+
 function summary_(list) {
+  var alts = computeAlts_(list);
+  var counted = list.filter(function (r) { return !isExcluded_(r, alts); });
   var nights = 0, ils = 0, missingIls = 0;
-  list.forEach(function (r) { nights += Number(r.nights) || 0; if (r.priceIls !== '' && r.priceIls !== null) ils += Number(r.priceIls) || 0; else if (r.price !== '') missingIls++; });
-  var extras = 0; list.forEach(function (r) { extras += Number(r.extraIls) || 0; });
-  return { count: list.length, nights: distinctNights_(list), roomNights: nights, totalIls: Math.round(ils), extrasIls: Math.round(extras), hotelsIls: Math.round(ils + extras), missingIls: missingIls, targetNights: Number(getSetting_('TARGET_NIGHTS', 21)) || 21 };
+  counted.forEach(function (r) { nights += Number(r.nights) || 0; if (r.priceIls !== '' && r.priceIls !== null) ils += Number(r.priceIls) || 0; else if (r.price !== '') missingIls++; });
+  var extras = 0; counted.forEach(function (r) { extras += Number(r.extraIls) || 0; });
+  return { count: list.length, excluded: list.length - counted.length, nights: distinctNights_(counted), roomNights: nights, totalIls: Math.round(ils), extrasIls: Math.round(extras), hotelsIls: Math.round(ils + extras), missingIls: missingIls, targetNights: Number(getSetting_('TARGET_NIGHTS', 21)) || 21 };
 }
 function budget_(bookingsSummary, expenses) {
   var byCat = {}; EXP_CATEGORIES.forEach(function (c) { byCat[c] = 0; });
@@ -506,7 +538,8 @@ function handleInner_(action, p, by) {
     case 'list': {
       var list = listBookings_();
       var groups = computeGroups_(list);
-      list.forEach(function (r) { r.groupInfo = groups[r.id] || null; });
+      var alts = computeAlts_(list);
+      list.forEach(function (r) { r.groupInfo = groups[r.id] || null; r.altInfo = alts[r.id] || null; });
       var sum = summary_(list);
       var exps = listExpenses_().map(function (r) { delete r._row; return r; });
       return json_({ ok: true, bookings: list, summary: sum, expenses: exps, budget: budget_(sum, exps), platforms: PLATFORMS, reminders: remindersStatus_() });
