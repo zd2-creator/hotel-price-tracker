@@ -464,28 +464,31 @@ function distinctNights_(list) {
  * מחזיר map id → {n, hotels, primary(bool), auto(bool)}
  */
 function computeAlts_(list) {
-  var cand = list.filter(function (r) { return !r.backup; });
-  var parent = cand.map(function (_, i) { return i; });
+  var parent = list.map(function (_, i) { return i; });
   function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
-  for (var i = 0; i < cand.length; i++) for (var j = i + 1; j < cand.length; j++) {
-    if (overlaps_(cand[i], cand[j]) && !isParallelPair_(cand[i], cand[j])) parent[find(i)] = find(j);
+  for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) {
+    var a = list[i], b = list[j];
+    if (!overlaps_(a, b)) continue;
+    if (a.backup || b.backup) { parent[find(i)] = find(j); continue; } // חלופה מפורשת תמיד מסומנת יחד עם מה שהיא חופפת לו
+    if (!isParallelPair_(a, b)) parent[find(i)] = find(j);
   }
   var comps = {};
-  cand.forEach(function (r, i) { var k = find(i); (comps[k] = comps[k] || []).push(r); });
+  list.forEach(function (r, i) { var k = find(i); (comps[k] = comps[k] || []).push(r); });
   var out = {}, n = 0;
   Object.keys(comps).forEach(function (k) {
     var g = comps[k]; if (g.length < 2) return;
-    var byHotel = {};
-    g.forEach(function (r) { var h = norm_(r.hotel) + '|' + String(r.platform); (byHotel[h] = byHotel[h] || { name: r.hotel, platform: r.platform, cost: 0, rows: [] }); byHotel[h].cost += (Number(r.priceIls) || 0) + (Number(r.extraIls) || 0); byHotel[h].rows.push(r); });
-    var hotels = Object.keys(byHotel); if (hotels.length < 2) return;
+    var byKey = {};
+    g.forEach(function (r) { var h = norm_(r.hotel) + '|' + String(r.platform) + (r.backup ? '|b' : ''); (byKey[h] = byKey[h] || { name: r.hotel, platform: r.platform, backup: !!r.backup, cost: 0, rows: [] }); byKey[h].cost += (Number(r.priceIls) || 0) + (Number(r.extraIls) || 0); byKey[h].rows.push(r); });
+    var keys = Object.keys(byKey); if (keys.length < 2) return;
     n++;
-    var primary = hotels.slice().sort(function (a, b) { return byHotel[a].cost - byHotel[b].cost; })[0];
-    hotels.forEach(function (h) { byHotel[h].rows.forEach(function (r) {
-      var others = hotels.filter(function (x) { return x !== h; }).map(function (x) { return norm_(byHotel[x].name) === norm_(r.hotel) ? ('אותו מלון ב-' + byHotel[x].platform) : byHotel[x].name; });
-      out[r.id] = { n: n, hotels: hotels.map(function (x) { return byHotel[x].name; }), others: others, primary: h === primary, auto: true, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
+    var live = keys.filter(function (x) { return !byKey[x].backup; }).sort(function (a, b) { return byKey[a].cost - byKey[b].cost; });
+    var primary = live[0] || null;
+    keys.forEach(function (h) { byKey[h].rows.forEach(function (r) {
+      var others = keys.filter(function (x) { return x !== h; }).map(function (x) { return norm_(byKey[x].name) === norm_(r.hotel) ? ('אותו מלון ב-' + byKey[x].platform) : byKey[x].name; });
+      out[r.id] = { n: n, hotels: keys.map(function (x) { return byKey[x].name; }), others: others, primary: h === primary, auto: !r.backup, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
     }); });
   });
-  list.forEach(function (r) { if (r.backup) out[r.id] = { n: 0, hotels: [], others: [], primary: false, auto: false, color: '#e5e7eb' }; });
+  list.forEach(function (r) { if (r.backup && !out[r.id]) out[r.id] = { n: 0, hotels: [], others: [], primary: false, auto: false, color: '#e5e7eb' }; });
   return out;
 }
 function isExcluded_(r, alts) { return !!r.backup || !!(alts[r.id] && !alts[r.id].primary); }
@@ -634,6 +637,7 @@ function handleInner_(action, p, by) {
       logHistory_('נמחק לצמיתות', by, p.note || '', src);
       return json_({ ok: true, purged: src });
     }
+    case 'sync': { syncGroups_(); syncSummary_(); return json_({ ok: true }); }
     case 'setTarget': { setSetting_('TARGET_NIGHTS', Number(p.nights) || 21, 'יעד לילות לטיול'); return json_({ ok: true }); }
     case 'setBudget': { setSetting_('TARGET_BUDGET', Number(p.ils) || 0, 'תקציב כולל בשקלים (0 = לא הוגדר)'); return json_({ ok: true }); }
     case 'expenses': {
