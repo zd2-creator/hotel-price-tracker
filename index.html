@@ -476,7 +476,7 @@ function card(b) {
   const g = b.groupInfo; const A = b.altInfo; const ex = isExcluded(b);
   const c = el('div',{class:'card'+(g?' grouped':'')+(ex?' excluded':''), style:`--pc:${pc(b.platform)}`+(g?`;--gc:${g.color}`:''), onclick:()=>openDetail(b)},
     g ? el('div',{class:'group-badge'}, `🛏 חדר ${g.idx} מתוך ${g.size} במקביל`) : null,
-    b.backup ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✔ נספר · חופף עם ':'⚠️ לא נספר (יקר יותר) · חופף עם ')+A.hotels.filter(h=>h!==b.hotel).join(', ')) : null,
+    b.backup ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✔ נספר · חלופה: ':'⚠️ לא נספר (יקר יותר) · חלופה: ')+(A.others||A.hotels.filter(h=>h!==b.hotel)).join(', ')) : null,
     el('div',{class:'c-head'},
       el('div',{}, el('div',{class:'c-title'}, b.hotel||'—'), el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')+(b.roomType?' · '+b.roomType:''))),
       el('span',{class:'badge'}, b.platform||'?')),
@@ -643,12 +643,12 @@ function openForm(b={}, replacing=null) {
   const platSel = el('select',{name:'platform'}, el('option',{value:''},'בחר…'), ...platforms.map(p=>el('option',{value:p, selected:b.platform===p}, p)));
   if (b.platform && !platforms.includes(b.platform)) platSel.append(el('option',{value:b.platform,selected:true},b.platform));
   const curSel = el('select',{name:'currency'}, ...CURRENCIES.map(c=>el('option',{value:c, selected:(b.currency||'ILS')===c}, c)));
-  let breakfast = !!b.breakfast, paid = !!b.paid, backup = !!b.backup;
+  let breakfast = !!b.breakfast, paid = !!b.paid, backup = !!b.backup, parallel = !!b.parallel;
   const sw = (label, getv, setv) => { const s=el('div',{class:'switch'+(getv()?' on':'')}); const t=el('div',{class:'toggle', onclick:()=>{setv(!getv()); s.classList.toggle('on',getv());}}, el('b',{},label), s); return t; };
   const form = el('form',{onsubmit: async ev => {
     ev.preventDefault();
     const fd = new FormData(form); const booking = Object.fromEntries(fd.entries());
-    booking.breakfast = breakfast; booking.paid = paid; booking.backup = backup;
+    booking.breakfast = breakfast; booking.paid = paid; booking.backup = backup; booking.parallel = parallel;
     if (!booking.hotel.trim()) return toast('חסר שם מלון', true);
     if (booking.checkIn && booking.checkOut && booking.checkOut <= booking.checkIn) return toast('צ׳ק-אאוט חייב להיות אחרי צ׳ק-אין', true);
     const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
@@ -670,6 +670,7 @@ function openForm(b={}, replacing=null) {
     sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
     sw('💳 שולם מראש', ()=>paid, v=>paid=v),
     sw('🔁 חלופה / גיבוי (לא נספר בסכומים ובלילות)', ()=>backup, v=>backup=v),
+    sw('🛏 חדר נוסף באותו מלון (לספור בנוסף, לא חלופה)', ()=>parallel, v=>parallel=v),
     f('מועד חיוב (מתי יורד התשלום)','paymentDate','date',{full:true}),
     el('div',{class:'row'}, f('תוספת שתשולם במלון (באותו מטבע)','extraPrice','number',{attrs:{step:'0.01',inputmode:'decimal',placeholder:'למשל מיטה נוספת'}}), f('על מה התוספת','extraNote','text',{attrs:{placeholder:'מיטה נוספת / ילד'}})),
     el('div',{class:'row'}, f('סוג החדר','roomType'), f('מספר הזמנה','confirmation')),
