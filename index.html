@@ -515,7 +515,7 @@ function renderArchive() {
   state.archive.forEach(x => {
     const active = state.bookings.some(b=>String(b.id)===String(x.id));
     h.append(el('div',{class:'h-item', style:`border-inline-start:5px solid ${pc(x.platform)}`},
-      el('div',{class:'h-top'}, el('span',{class:'tag '+(x.archiveAction==='הוחלף'?'warn':'bad')}, x.archiveAction||'בארכיון'), el('time',{}, (x.archivedAt||'').replace('T',' ').slice(0,16)+(x.archivedBy?' · '+x.archivedBy:''))),
+      el('div',{class:'h-top'}, el('span',{class:'tag '+(x.archiveAction==='הוחלף'?'warn':x.archiveAction==='בוטל'?'info':'bad')}, x.archiveAction||'בארכיון'), el('time',{}, (x.archivedAt||'').replace('T',' ').slice(0,16)+(x.archivedBy?' · '+x.archivedBy:''))),
       el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · 📍${x.destination||''}`),
       el('div',{class:'h-note'}, `${fmtD(x.checkIn,true)} ← ${fmtD(x.checkOut,true)} · ${x.nights||'?'} לילות · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}${x.breakfast?' · ☕':''}${x.confirmation?' · #'+x.confirmation:''}`),
       x.archiveNote ? el('div',{class:'h-note'}, x.archiveNote) : null,
@@ -633,6 +633,7 @@ function openDetail(b) {
     el('div',{class:'actions'},
       el('button',{class:'btn primary', onclick:()=>openForm(b)}, '✏️ עריכה'),
       el('button',{class:'btn', onclick:()=>openForm({...b, id:'', confirmation:'', createdAt:''}, b)}, '🔁 הזמנתי מחדש'),
+      el('button',{class:'btn full'+(isExcluded(b)?' danger':''), onclick:async()=>{ if(!confirm('לסמן את "'+b.hotel+'" ('+b.platform+') כהזמנה שביטלת? היא תעבור לארכיון.')) return; try{ await api('cancel',{id:b.id},'POST'); toast('סומן כבוטל, עבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '❌ ביטלתי את ההזמנה הזו'),
       el('button',{class:'btn full', onclick:async()=>{ try{ await api('update',{id:b.id, booking:{backup:!b.backup}},'POST'); toast(b.backup?'חזר להיספר ✓':'סומן כחלופה (לא נספר)'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, b.backup?'✔ להחזיר לספירה (זו לא חלופה)':'🔁 סמן כחלופה (גיבוי, לא נספר)'),
       el('button',{class:'btn danger full', onclick:async()=>{ const reason = prompt('להעביר את "'+b.hotel+'" לארכיון?\nסיבה (לא חובה):'); if (reason===null) return; try{ await api('delete',{id:b.id, note:reason},'POST'); toast('הועבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '🗑 מחיקה'))
   ));

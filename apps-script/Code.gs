@@ -544,8 +544,8 @@ function doPost(e) {
 
 function handle_(action, p, by) {
   var res = handleInner_(action, p, by);
-  if (['add', 'upsert', 'update', 'delete', 'restore'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
-  if (['add', 'upsert', 'update', 'delete', 'restore', 'addExpense', 'updateExpense', 'deleteExpense', 'setTarget', 'setBudget'].indexOf(action) >= 0) { try { syncSummary_(); } catch (e) { } }
+  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
+  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore', 'addExpense', 'updateExpense', 'deleteExpense', 'setTarget', 'setBudget'].indexOf(action) >= 0) { try { syncSummary_(); } catch (e) { } }
   return res;
 }
 function handleInner_(action, p, by) {
@@ -619,6 +619,14 @@ function handleInner_(action, p, by) {
     case 'archive': {
       var a = listArchive_().map(function (r) { delete r._row; return r; }).reverse();
       return json_({ ok: true, archive: a });
+    }
+    case 'cancel': {
+      // ביטלתי את ההזמנה (למשל הכפול היקר) → לארכיון עם הסיבה "בוטל"
+      var oc = findRow_(p.id); if (!oc) return json_({ ok: false, error: 'לא נמצא' });
+      deleteRow_(oc._row); delete oc._row;
+      archive_(oc, 'בוטל', by, p.note || 'ההזמנה בוטלה');
+      logHistory_('בוטל (לארכיון)', by, p.note || '', oc);
+      return json_({ ok: true, cancelled: oc, archived: true, summary: summary_(listBookings_()) });
     }
     case 'restore': {
       // מחזיר הזמנה מהארכיון לרשימה הפעילה
