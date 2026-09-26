@@ -39,7 +39,7 @@ var COLS = [
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
-  ['group', 'חדרים במקביל', 'text'],
+  ['group', 'כפילויות / חדרים במקביל', 'text'],
   ['extraPrice', 'תוספת במלון', 'num'],
   ['extraNote', 'פירוט התוספת', 'text'],
   ['extraIls', 'תוספת בשקלים', 'num'],
@@ -401,6 +401,7 @@ function remindersStatus_() {
 }
 
 // ---------- חדרים במקביל (אותו מלון, תאריכים חופפים) ----------
+var ALT_COLORS = ['#ffd8a8', '#ffc9de', '#ffe08a', '#f5c2ff', '#ffb3b3', '#d9c7ff'];
 var GROUP_COLORS = ['#fff3b0', '#cfe4ff', '#c9f2d0', '#ffd6e7', '#e3d9ff', '#ffe0c2', '#c8f4f0', '#f0e0c0'];
 function overlaps_(a, b) { return a.checkIn && a.checkOut && b.checkIn && b.checkOut && a.checkIn < b.checkOut && b.checkIn < a.checkOut; }
 /** מחזיר map id → {n, size, color} רק לקבוצות של 2+ הזמנות */
@@ -436,9 +437,11 @@ function syncGroups_() {
   if (last < 2) return;
   var bg = [], labels = [];
   for (var row = 2; row <= last; row++) { bg.push(header.map(function () { return null; })); labels.push(['']); }
+  var alts = computeAlts_(all);
   all.forEach(function (r) {
-    var g = groups[r.id];
-    if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
+    var g = groups[r.id], a = alts[r.id];
+    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.primary ? 'נספר' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
+    else if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
   });
   sh.getRange(2, 1, last - 1, header.length).setBackgrounds(bg);
   if (gi >= 0) sh.getRange(2, gi + 1, last - 1, 1).setValues(labels);
@@ -479,10 +482,10 @@ function computeAlts_(list) {
     var primary = hotels.slice().sort(function (a, b) { return byHotel[a].cost - byHotel[b].cost; })[0];
     hotels.forEach(function (h) { byHotel[h].rows.forEach(function (r) {
       var others = hotels.filter(function (x) { return x !== h; }).map(function (x) { return norm_(byHotel[x].name) === norm_(r.hotel) ? ('אותו מלון ב-' + byHotel[x].platform) : byHotel[x].name; });
-      out[r.id] = { n: n, hotels: hotels.map(function (x) { return byHotel[x].name; }), others: others, primary: h === primary, auto: true };
+      out[r.id] = { n: n, hotels: hotels.map(function (x) { return byHotel[x].name; }), others: others, primary: h === primary, auto: true, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
     }); });
   });
-  list.forEach(function (r) { if (r.backup) out[r.id] = { n: 0, hotels: [], primary: false, auto: false }; });
+  list.forEach(function (r) { if (r.backup) out[r.id] = { n: 0, hotels: [], others: [], primary: false, auto: false, color: '#e5e7eb' }; });
   return out;
 }
 function isExcluded_(r, alts) { return !!r.backup || !!(alts[r.id] && !alts[r.id].primary); }
