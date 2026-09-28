@@ -441,7 +441,7 @@ function syncGroups_() {
   var alts = computeAlts_(all);
   all.forEach(function (r) {
     var g = groups[r.id], a = alts[r.id];
-    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [a.toCancel ? ('❌ לבטל! נבחר ' + a.chosenName + (r.freeCancelUntil ? ' · ביטול חינם עד ' + r.freeCancelUntil : '')) : r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.chosen ? '✓ נבחר · נספר' : a.primary ? 'נספר (הזול, עוד לא נבחר)' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
+    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [a.toCancel ? ('❌ לבטל עד ' + (r.freeCancelUntil || '— אין ביטול חינם') + ' · נבחר ' + a.chosenName) : r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.chosen ? '✓ נבחר · נספר' : a.primary ? 'נספר (הזול, עוד לא נבחר)' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
     else if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
   });
   sh.getRange(2, 1, last - 1, header.length).setBackgrounds(bg);
