@@ -27,7 +27,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0}
 a{color:var(--brand)}
 b,strong{font-weight:700}
-.app{max-width:640px;margin:0 auto;min-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+.app{max-width:640px;margin:0 auto;min-height:100dvh;overflow-x:clip;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 
 /* header */
 .top{background:linear-gradient(180deg,#107a71,#0f6b64);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 14px;border-radius:0 0 20px 20px;box-shadow:0 4px 16px rgba(15,118,110,.18)}
@@ -49,7 +49,7 @@ b,strong{font-weight:700}
 .stat-row .sep{color:rgba(255,255,255,.32)}
 /* grand total: one soft card, paid line docks under it as a footer strip */
 .money-rows{margin-top:6px;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
-.mrow{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:12px;font-size:13px;color:rgba(255,255,255,.78)}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:12px;font-size:13px;color:rgba(255,255,255,.78)}
 .mrow b{color:#fff}
 .mrow > b{font-size:15px;font-weight:700;text-align:left}
 .mrow.main{color:rgba(255,255,255,.95)}
@@ -77,8 +77,8 @@ b,strong{font-weight:700}
 .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .chip.filter{font-weight:600}
 .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
-.chip .x{font-size:11px;opacity:.7}
-.chip .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
+.chip .x{flex:0 0 auto;font-size:11px;opacity:.7}
+.chip .cnt{flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
 .chip.on .cnt{background:#fff;color:var(--brand)}
 .count-line{font-size:12.5px;color:var(--muted);padding:0 4px 2px;font-variant-numeric:tabular-nums}
 #viewList.is-empty .tools,#viewList.is-empty .chips{display:none}
@@ -106,7 +106,8 @@ b,strong{font-weight:700}
 .alt-group .card{box-shadow:none;border:1px solid var(--line-soft)}
 .alt-group .card.excluded{opacity:.9}
 .ag-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:2px 4px 8px}
-.ag-status{flex:0 0 auto;font-size:12px;border-radius:99px;padding:2px 10px}
+.ag-head>span:first-child{min-width:0}
+.ag-status{flex:0 0 auto;font-size:12px;border-radius:99px;padding:2px 10px;white-space:nowrap}
 .ag-status.ok{background:var(--ok-soft);color:var(--ok)}.ag-status.pending{background:var(--warn-soft);color:var(--warn)}
 .ag-tabs{display:flex;gap:8px;padding-bottom:10px;overflow-x:auto;scrollbar-width:none}
 .ag-tabs::-webkit-scrollbar{display:none}
@@ -125,7 +126,9 @@ b,strong{font-weight:700}
 .btn.danger-solid{background:var(--bad);color:#fff}
 .ag-note.bad{color:var(--bad);font-weight:600}
 .alt-badge.bad{background:var(--bad-soft);color:var(--bad)}
-.pill.tocancel{background:#fee2e2;color:#991b1b;font-weight:700;flex:0 0 auto}
+/* red "to cancel" pill: its own full-width row in the header, long text ellipsizes (inner .t) */
+.pill.tocancel{background:#fee2e2;color:#991b1b;font-weight:700;flex:1 1 100%;min-width:0;display:flex;align-items:center;justify-content:center}
+.pill.tocancel .t{min-width:0;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext}
 .cancel-banner{background:var(--bad-soft);border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;color:var(--bad);font-size:13px}
 .cancel-banner b{font-size:14px}
 .cancel-banner .btn{margin-top:2px}
@@ -252,11 +255,12 @@ form textarea{min-height:72px;resize:vertical}
 .restore.danger{color:var(--bad)}
 
 /* header alerts + tabs */
-.alert-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;min-width:0}
-.pill{flex:0 0 auto;position:relative;min-height:34px;line-height:34px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-weight:500;white-space:nowrap}
+/* wraps instead of overflowing: an overflowing pill row used to widen the whole page (RTL overflow → layout viewport grew, chip row got pushed off-screen) */
+.alert-line{display:flex;flex-wrap:wrap;align-items:center;gap:10px 8px;margin-top:10px;font-size:12.5px;min-width:0}
+.pill{flex:0 0 auto;position:relative;min-height:34px;line-height:34px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-weight:500;white-space:nowrap;max-width:100%}
 button.pill::before{content:"";position:absolute;inset:-5px}
 .alert-line.off .pill.status{opacity:.8}
-.pill.next{flex:1;min-width:0;display:flex;align-items:center;gap:4px;font-weight:600}
+.pill.next{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:4px;font-weight:600;overflow:hidden}
 .pill.next .h{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;direction:ltr;unicode-bidi:isolate;text-align:right}
 .pill.due-bad{color:#fecaca}.pill.due-warn{color:#fde68a}.pill.due-ok{color:#a7f3d0}
 .tabbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 16px;padding-top:calc(8px + env(safe-area-inset-top))}
@@ -390,7 +394,7 @@ const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
 const USERS = ['צחי','שירן']; // יוזרים קבועים לבחירה מהירה (אפשר להקליד גם אחר)
-const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם'],['paySoon','💳 חיוב ב-14 יום הקרובים'],['toCancel','❌ לבטל עד…']];
+const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם'],['paySoon','💳 חיוב ב-14 יום הקרובים'],['toCancel','❌ לביטול']];
 const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
@@ -522,7 +526,7 @@ function render() {
   al.hidden = active && !next && !tc.length;
   if (!al.hidden) {
     const tcFirst = [...tc].sort((a,b)=>(a.freeCancelUntil||'9').localeCompare(b.freeCancelUntil||'9'))[0];
-    if (tc.length) al.append(el('button',{type:'button', class:'pill tocancel', onclick:()=>{ state.filters.misc.add('toCancel'); document.querySelector('.tabs button[data-view=list]').click(); render(); window.scrollTo({top:document.querySelector('#chips').offsetTop-80,behavior:'smooth'}); }}, tc.length===1 ? `❌ ${cancelBy(tcFirst,false)}` : `❌ ${tc.length} לביטול · ${cancelBy(tcFirst,false)}`));
+    if (tc.length) al.append(el('button',{type:'button', class:'pill tocancel', onclick:()=>{ state.filters.misc.add('toCancel'); document.querySelector('.tabs button[data-view=list]').click(); render(); window.scrollTo({top:document.querySelector('#chips').offsetTop-80,behavior:'smooth'}); }}, el('span',{class:'t'}, tc.length===1 ? `❌ ${cancelBy(tcFirst,false)}` : `❌ ${tc.length} לביטול · ${cancelBy(tcFirst,false)}`)));
     al.append(active ? el('span',{class:'pill status'}, '🔔 תזכורות פעילות') : el('button',{type:'button', class:'pill status', onclick:openSettings}, '🔕 תזכורות כבויות'));
     if (next) { const d=daysUntil(next.freeCancelUntil); al.append(el('span',{class:'pill next '+(d<=3?'due-bad':d<=14?'due-warn':'due-ok'), title:next.hotel}, d===0?'⏳ היום:':'⏳', el('span',{class:'h'}, next.hotel), d===0?null:`· עוד ${d} ימים`)); }
   }
