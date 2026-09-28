@@ -240,18 +240,19 @@ button.pill::before{content:"";position:absolute;inset:-5px}
 #printView .p-sub{color:#555;font-size:12px}
 #printView .p-sum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:12.5px}
 #printView .p-sum b{font-size:15px;display:block}
-#printView table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;table-layout:auto}
+#printView table{width:100%;max-width:100%;border-collapse:collapse;font-size:10.5px;page-break-inside:auto;table-layout:auto}
 #printView th{background:#e6f4f1;color:#0f5132;text-align:right;padding:6px 5px;border-bottom:1px solid #b5d9cf;font-weight:700;white-space:normal;line-height:1.2;vertical-align:bottom}
 #printView td{padding:6px 5px;border-bottom:1px solid #e5e7eb;vertical-align:top}
 #printView td.hotel{min-width:90px;font-weight:700}
 #printView td.nowrap{white-space:nowrap}
-#printView td.key{background:#f0fdf9}
-#printView td.key b{color:#0f5132;font-size:12px}
+#printView td.key{background:#f0fdf9;white-space:normal;min-width:64px}
+#printView td.key b{color:#0f5132;font-size:12px;display:block;white-space:normal;word-break:normal;overflow-wrap:anywhere}
 #printView td.key.warn b{color:#b45309}
 #printView th.k{background:#cdeee4}
 #printView tr{page-break-inside:avoid}
 #printView tr.dup td{background:#fff7ed}
-#printView td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
+#printView td.num{white-space:normal;font-variant-numeric:tabular-nums}
+#printView td.nowrap{white-space:nowrap}
 #printView .note{color:#555;font-size:10.5px}
 #printView .p-gaps{margin-top:10px;font-size:11.5px;color:#92400e}
 #printView .p-foot{margin-top:14px;font-size:10.5px;color:#777;border-top:1px solid #e5e7eb;padding-top:6px}
@@ -707,7 +708,7 @@ function buildPrint(o) {
   rows.forEach((b,i)=>{
     const ex = isExcluded(b);
     const ils = Number(b.priceIls)||0, exIls = Number(b.extraIls)||0, n = Number(b.nights)||0;
-    const cells = [T(String(i+1)), T(b.hotel||'','hotel'), T(b.destination||''), T(`${fmtD(b.checkIn,true)} – ${fmtD(b.checkOut,true)}`,'nowrap'), T(String(n||'')), T(b.roomType||'—'), T(b.breakfast?'כלול':'לא כלול'), T(b.platform||'')];
+    const cells = [T(String(i+1)), T(b.hotel||'','hotel'), T(b.destination||''), T(`${fmtD(b.checkIn,true)} – ${fmtD(b.checkOut,true)}`,''), T(String(n||'')), T(b.roomType||'—'), T(b.breakfast?'כלול':'לא כלול'), T(b.platform||'')];
     if (o.prices) {
       cells.push(B(money(b.price,b.currency)));
       if (o.extras) cells.push(exIls ? T(`${money(b.extraPrice,b.currency)}${b.extraNote?' · '+b.extraNote:''}`,'num') : T('—'));
