@@ -227,6 +227,30 @@ button.pill::before{content:"";position:absolute;inset:-5px}
 .textbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-top:4px;color:var(--brand);font-weight:600;font-size:14px}
 .setup{margin:24px 16px;background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
 .setup h3{margin:0 0 8px;font-size:16px}
+/* ===== הדפסה / PDF ===== */
+#printView{display:none}
+@media print{
+  body{background:#fff!important}
+  .app,.fab,.sheet,.sheet-bg,.toast,.loading,.tabbar{display:none!important}
+  #printView{display:block!important;font-family:Heebo,Arial,sans-serif;color:#111;padding:0;font-size:12px;direction:rtl}
+  @page{size:A4;margin:14mm 12mm}
+}
+#printView .p-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:12px}
+#printView h1{margin:0;font-size:22px;color:#0f766e}
+#printView .p-sub{color:#555;font-size:12px}
+#printView .p-sum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:12.5px}
+#printView .p-sum b{font-size:15px;display:block}
+#printView table{width:100%;border-collapse:collapse;font-size:11.5px;page-break-inside:auto}
+#printView th{background:#e6f4f1;color:#0f5132;text-align:right;padding:6px 6px;border-bottom:1px solid #b5d9cf;font-weight:700;white-space:nowrap}
+#printView td{padding:6px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+#printView td:nth-child(2){min-width:120px;font-weight:600}
+#printView td:nth-child(4){white-space:nowrap}
+#printView tr{page-break-inside:avoid}
+#printView tr.dup td{background:#fff7ed}
+#printView td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
+#printView .note{color:#555;font-size:10.5px}
+#printView .p-gaps{margin-top:10px;font-size:11.5px;color:#92400e}
+#printView .p-foot{margin-top:14px;font-size:10.5px;color:#777;border-top:1px solid #e5e7eb;padding-top:6px}
 </style>
 </head>
 <body>
@@ -235,7 +259,10 @@ button.pill::before{content:"";position:absolute;inset:-5px}
   <header class="top">
     <div class="top-row">
       <h1>🏨 הזמנות מלונות</h1>
-      <button class="icon-btn" id="btnSettings" type="button" title="הגדרות" aria-label="הגדרות">⚙︎</button>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" id="btnPrint" type="button" title="הדפסה / PDF" aria-label="הדפסה">🖨</button>
+        <button class="icon-btn" id="btnSettings" type="button" title="הגדרות" aria-label="הגדרות">⚙︎</button>
+      </div>
     </div>
     <div class="hero"><b id="sNights">–</b><span>מתוך <span id="sTarget">21</span> לילות</span></div>
     <div class="bar"><i id="bar"></i></div>
@@ -294,6 +321,7 @@ button.pill::before{content:"";position:absolute;inset:-5px}
 <div class="sheet-bg" id="sheetBg"></div>
 <div class="sheet" id="sheet"><div class="sheet-top"><div class="handle"></div><button class="sheet-close" id="sheetClose" type="button" aria-label="סגירה">✕</button></div><div id="sheetBody"></div></div>
 <div class="toast" id="toast"></div>
+<div id="printView" hidden></div>
 
 <script>
 /* ====== הגדרות ====== */
@@ -632,6 +660,58 @@ function openExpenseForm(e={}) {
   upd(); openSheet(form);
 }
 
+/* ====== הדפסה / PDF ====== */
+function openPrint() {
+  const opts = { dups: false, prices: true, confirm: true, notes: true, extras: true, cancel: true, users: false };
+  const cb = (label, key, hint) => { const s=el('div',{class:'switch'+(opts[key]?' on':'')}); return el('div',{class:'toggle', onclick:()=>{opts[key]=!opts[key]; s.classList.toggle('on',opts[key]);}}, el('div',{}, el('b',{},label), hint?el('div',{class:'hint'},hint):null), s); };
+  openSheet(el('div',{},
+    el('h2',{},'🖨 הדפסה / שמירה כ-PDF'),
+    el('div',{class:'hint'}, 'נפתח חלון ההדפסה של הטלפון. בוחרים "שמירה כ-PDF" ואז אפשר לשלוח בוואטסאפ/מייל.'),
+    cb('לכלול כפילויות / חלופות', 'dups', 'כבוי = רק המלונות שנספרים (הצעה נקייה)'),
+    cb('מחירים', 'prices'), cb('מספרי הזמנה', 'confirm'), cb('ביטול חינם עד', 'cancel'), cb('תוספות במלון', 'extras'), cb('הערות', 'notes'), cb('יוזר שהזמין', 'users'),
+    el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'button',class:'btn primary', onclick:()=>{ buildPrint(opts); closeSheet(); setTimeout(()=>window.print(), 150); }}, '🖨 הדפסה'))
+  ));
+}
+function buildPrint(o) {
+  const all = [...state.bookings].sort((a,b)=>(a.checkIn||'9').localeCompare(b.checkIn||'9'));
+  const rows = o.dups ? all : all.filter(b=>!isExcluded(b));
+  const counted = rows.filter(b=>!isExcluded(b));
+  const nights = distinctNights(counted);
+  const total = counted.reduce((n,b)=>n+(Number(b.priceIls)||0)+(o.extras?(Number(b.extraIls)||0):0),0);
+  const first = counted[0], last = counted[counted.length-1];
+  const D = new Date(); const today = `${D.getDate()}.${D.getMonth()+1}.${D.getFullYear()}`;
+  const v = document.querySelector('#printView'); v.innerHTML='';
+  v.append(el('div',{class:'p-head'}, el('div',{}, el('h1',{},'הצעת מלונות · הטיול'), el('div',{class:'p-sub'}, (first?`${fmtD(first.checkIn,true)} עד ${fmtD(last.checkOut,true)} · `:'')+`${counted.length} מלונות · ${nights} לילות`)), el('div',{class:'p-sub'}, 'הופק '+today)));
+  if (o.prices) v.append(el('div',{class:'p-sum'}, el('div',{}, el('b',{}, fmtN(total)+' ₪'), 'סה״כ מלונות'+(o.extras?' (כולל תוספות)':'')), el('div',{}, el('b',{}, nights?fmtN(total/nights)+' ₪':'—'), 'ממוצע ללילה'), el('div',{}, el('b',{}, String(nights)), 'לילות')));
+  const th = ['#','מלון','יעד','תאריכים','לילות','סוג חדר','ארוחת בוקר','הוזמן דרך'];
+  if (o.prices) th.push('מחיר','ללילה');
+  if (o.cancel) th.push('ביטול חינם עד');
+  if (o.confirm) th.push('מספר הזמנה');
+  if (o.users) th.push('יוזר');
+  const tbl = el('table',{}, el('thead',{}, el('tr',{}, ...th.map(h=>el('th',{},h)))));
+  const tb = el('tbody',{});
+  rows.forEach((b,i)=>{
+    const ex = isExcluded(b);
+    const tds = [String(i+1), b.hotel||'', b.destination||'', `${fmtD(b.checkIn,true)} – ${fmtD(b.checkOut,true)}`, String(b.nights||''), b.roomType||'—', b.breakfast?'כלול':'לא כלול', b.platform||''];
+    if (o.prices) { const ils=Number(b.priceIls)||0; tds.push(`${fmtN(ils)} ₪`+(b.currency&&b.currency!=='ILS'?` (${money(b.price,b.currency)})`:''), b.nights?fmtN(ils/b.nights)+' ₪':'—'); }
+    if (o.cancel) tds.push(b.freeCancelUntil?fmtD(b.freeCancelUntil,true):'ללא ביטול');
+    if (o.confirm) tds.push(b.confirmation||'—');
+    if (o.users) tds.push(b.account||'—');
+    const tr = el('tr',{class:ex?'dup':''}, ...tds.map((t,j)=>el('td',{class:(o.prices&&(j===8||j===9))?'num':''}, t)));
+    tb.append(tr);
+    const notes = [];
+    if (ex) notes.push(b.backup?'חלופה (לא נספרת בסכום)':'כפילות: לא נספרת בסכום, נספר המלון הזול'+(b.altInfo&&b.altInfo.others?' ('+b.altInfo.others.join(', ')+')':''));
+    if (b.groupInfo) notes.push(`חדר ${b.groupInfo.idx} מתוך ${b.groupInfo.size} במקביל`);
+    if (o.extras && Number(b.extraIls)>0) notes.push(`תוספת במלון: ${money(b.extraPrice,b.currency)}${b.extraNote?' ('+b.extraNote+')':''}${b.currency!=='ILS'?' ≈ '+fmtN(b.extraIls)+' ₪':''}`);
+    if (o.notes && b.notes) notes.push(b.notes);
+    if (notes.length) tb.append(el('tr',{class:ex?'dup':''}, el('td',{}), el('td',{colspan:String(th.length-1), class:'note'}, notes.join(' · '))));
+  });
+  tbl.append(tb); v.append(tbl);
+  const gaps=[]; for (let i=1;i<counted.length;i++){ const g=daysUntil(counted[i].checkIn)-daysUntil(counted[i-1].checkOut); if (g>0) gaps.push(`${g} ${g===1?'לילה':'לילות'} בלי מלון בין ${fmtD(counted[i-1].checkOut,true)} ל-${fmtD(counted[i].checkIn,true)}`); }
+  if (gaps.length) v.append(el('div',{class:'p-gaps'}, '⚠️ '+gaps.join(' · ')));
+  v.append(el('div',{class:'p-foot'}, 'המחירים בשקלים לפי שער ההמרה ביום ההזמנה. "ביטול חינם עד" = המועד האחרון לביטול ללא עלות.'));
+}
+
 /* ====== Bottom sheet ====== */
 function openSheet(node) { const b=$('#sheetBody'); b.innerHTML=''; b.append(node); $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0; document.body.style.overflow='hidden'; }
 function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); document.body.style.overflow=''; }
@@ -747,7 +827,7 @@ function openSettings() {
 
 /* ====== אירועים ====== */
 $('#fab').onclick = () => state.view==='budget' ? openExpenseForm() : openForm();
-$('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings;
+$('#btnSettings').onclick = openSettings; $('#btnSetup').onclick = openSettings; $('#btnPrint').onclick = openPrint;
 $('#q').oninput = e => { state.q = e.target.value; $('#qClear').hidden = !state.q; render(); };
 $('#qClear').onclick = () => { $('#q').value=''; state.q=''; $('#qClear').hidden = true; render(); };
 document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
