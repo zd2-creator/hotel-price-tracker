@@ -36,6 +36,7 @@ var COLS = [
   ['paymentDate', 'מועד חיוב', 'date'],
   ['backup', 'חלופה', 'bool'],
   ['parallel', 'חדר נוסף', 'bool'],
+  ['chosen', 'נבחר', 'bool'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
@@ -440,7 +441,7 @@ function syncGroups_() {
   var alts = computeAlts_(all);
   all.forEach(function (r) {
     var g = groups[r.id], a = alts[r.id];
-    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.primary ? 'נספר' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
+    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.chosen ? '✓ נבחר · נספר' : a.primary ? 'נספר (הזול, עוד לא נבחר)' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
     else if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
   });
   sh.getRange(2, 1, last - 1, header.length).setBackgrounds(bg);
@@ -482,10 +483,13 @@ function computeAlts_(list) {
     var keys = Object.keys(byKey); if (keys.length < 2) return;
     n++;
     var live = keys.filter(function (x) { return !byKey[x].backup; }).sort(function (a, b) { return byKey[a].cost - byKey[b].cost; });
-    var primary = live[0] || null;
+    var picked = live.filter(function (x) { return byKey[x].rows.some(function (r) { return r.chosen; }); });
+    var primary = picked[0] || live[0] || null;
+    var explicit = picked.length > 0;
     keys.forEach(function (h) { byKey[h].rows.forEach(function (r) {
       var others = keys.filter(function (x) { return x !== h; }).map(function (x) { return norm_(byKey[x].name) === norm_(r.hotel) ? ('אותו מלון ב-' + byKey[x].platform) : byKey[x].name; });
-      out[r.id] = { n: n, hotels: keys.map(function (x) { return byKey[x].name; }), others: others, primary: h === primary, auto: !r.backup, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
+      var cheapest = live[0] === h;
+      out[r.id] = { n: n, size: keys.length, members: g.map(function (m) { return m.id; }), hotels: keys.map(function (x) { return byKey[x].name; }), others: others, primary: h === primary, chosen: explicit && h === primary, cheapest: cheapest, auto: !explicit, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
     }); });
   });
   list.forEach(function (r) { if (r.backup && !out[r.id]) out[r.id] = { n: 0, hotels: [], others: [], primary: false, auto: false, color: '#e5e7eb' }; });
@@ -544,8 +548,8 @@ function doPost(e) {
 
 function handle_(action, p, by) {
   var res = handleInner_(action, p, by);
-  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
-  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore', 'addExpense', 'updateExpense', 'deleteExpense', 'setTarget', 'setBudget'].indexOf(action) >= 0) { try { syncSummary_(); } catch (e) { } }
+  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore', 'choose'].indexOf(action) >= 0) { try { syncGroups_(); } catch (e) { } }
+  if (['add', 'upsert', 'update', 'delete', 'cancel', 'restore', 'choose', 'addExpense', 'updateExpense', 'deleteExpense', 'setTarget', 'setBudget'].indexOf(action) >= 0) { try { syncSummary_(); } catch (e) { } }
   return res;
 }
 function handleInner_(action, p, by) {
@@ -619,6 +623,25 @@ function handleInner_(action, p, by) {
     case 'archive': {
       var a = listArchive_().map(function (r) { delete r._row; return r; }).reverse();
       return json_({ ok: true, archive: a });
+    }
+    case 'choose': {
+      // "זה המלון שבחרתי": מסמן אחד בקבוצת הכפילויות כנבחר, ומנקה את הסימון משאר הקבוצה
+      var allC = readAll_(bookingsSheet_(), COLS);
+      var altsC = computeAlts_(allC);
+      var tgt = null; allC.forEach(function (r) { if (String(r.id) === String(p.id)) tgt = r; });
+      if (!tgt) return json_({ ok: false, error: 'לא נמצא' });
+      var infoC = altsC[tgt.id];
+      var ids = (infoC && infoC.members) ? infoC.members : [tgt.id];
+      allC.forEach(function (r) {
+        if (ids.indexOf(r.id) < 0) return;
+        var want = String(r.id) === String(tgt.id);
+        if (!!r.chosen === want && !(want && r.backup)) return;
+        var row = r._row; delete r._row;
+        r.chosen = want; if (want) r.backup = false; r.updatedAt = now_();
+        writeBooking_(row, r);
+      });
+      logHistory_('נבחר מתוך כפילות', by, tgt.hotel + ' (' + tgt.platform + ')', tgt);
+      return json_({ ok: true, chosen: tgt.id });
     }
     case 'cancel': {
       // ביטלתי את ההזמנה (למשל הכפול היקר) → לארכיון עם הסיבה "בוטל"

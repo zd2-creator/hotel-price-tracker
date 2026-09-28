@@ -95,6 +95,22 @@ b,strong{font-weight:700}
 /* linked bookings: calm background tint only, no colored border, no side bar */
 .card.grouped{background:color-mix(in srgb,var(--gc) 22%,#fff);border-color:transparent}
 .card.excluded{opacity:.82}
+.alt-group{background:color-mix(in srgb,var(--gc) 20%,#fff);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
+.alt-group .card{box-shadow:none;border:1px solid var(--line-soft)}
+.alt-group .card.excluded{opacity:.9}
+.ag-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:2px 4px 8px}
+.ag-status{flex:0 0 auto;font-size:12px;border-radius:99px;padding:2px 10px}
+.ag-status.ok{background:var(--ok-soft);color:var(--ok)}.ag-status.pending{background:var(--warn-soft);color:var(--warn)}
+.ag-tabs{display:flex;gap:8px;padding-bottom:10px;overflow-x:auto;scrollbar-width:none}
+.ag-tabs::-webkit-scrollbar{display:none}
+.ag-tab{flex:1 1 0;min-width:96px;min-height:56px;border-radius:12px;background:#fff;border:1px solid var(--line);padding:6px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.25;color:var(--ink-2)}
+.ag-tab .ag-name{font-size:12.5px;font-weight:600}
+.ag-tab b{font-size:15px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+.ag-tab .ag-sub{font-size:11px;color:var(--muted)}
+.ag-tab.counted .ag-sub{color:var(--ok);font-weight:600}
+.ag-tab.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
+.ag-choose{width:100%;margin-top:10px}
+.ag-note{font-size:11.5px;color:var(--muted);text-align:center;padding:8px 4px 0}
 .card.excluded .c-title,.card.excluded .price{color:var(--ink-2)}
 .alt-badge,.group-badge{display:inline-flex;align-items:center;min-height:24px;font-size:11.5px;font-weight:600;border-radius:8px;padding:3px 8px;margin-bottom:8px;line-height:1.3;max-width:100%}
 .alt-badge.on{background:var(--ok-soft);color:var(--ok)}.alt-badge.off{background:var(--warn-soft);color:var(--warn)}
@@ -350,7 +366,7 @@ const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
 
-let state = { bookings:[], summary:null, reminders:null, expenses:[], budget:null, history:[], archive:[], filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+let state = { bookings:[], summary:null, reminders:null, expenses:[], budget:null, history:[], archive:[], altView:{}, filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
 /* ====== עזרים ====== */
 const $ = s => document.querySelector(s);
@@ -362,6 +378,7 @@ const WD = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const fmtD = (iso, withYear=false) => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return `${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}${withYear?'.'+String(d.getFullYear()).slice(2):''}`; };
 const distinctNights = arr => { const iv=arr.filter(b=>b.checkIn&&b.checkOut&&b.checkIn<b.checkOut).map(b=>[b.checkIn,b.checkOut]).sort(); let t=0,cur=null; for(const x of iv){ if(!cur||x[0]>=cur[1]){ if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); cur=[x[0],x[1]]; } else if(x[1]>cur[1]) cur[1]=x[1]; } if(cur) t+=Math.round((new Date(cur[1])-new Date(cur[0]))/864e5); return t; };
 // שולם / נשאר לשלם: מלונות ששולמו + כל ההוצאות = שולם; מלונות שלא שולמו + תוספות במלון = נשאר
+const norm = x => String(x||'').toLowerCase().replace(/[^a-z0-9\u0590-\u05ff]+/g,' ').trim();
 const isExcluded = b => !!b.backup || !!(b.altInfo && !b.altInfo.primary);
 const paidSplit = () => { let paid=0, left=0; state.bookings.forEach(b=>{ if (isExcluded(b)) return; const v=Number(b.priceIls)||0; if (b.paid) paid+=v; else left+=v; left+=Number(b.extraIls)||0; }); (state.expenses||[]).forEach(e=>{ const v=Number(e.priceIls)||0; if (e.paid===false) left+=v; else paid+=v; }); return {paid, left}; };
 const fmtN = n => (n===''||n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:0});
@@ -494,13 +511,20 @@ function render() {
   list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות${rn>fn?' ('+rn+' לילות-חדר)':''} · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
 
   let prev = null;
+  const altMembers = {}; arr.forEach(b => { const n = b.altInfo && b.altInfo.n; if (n) (altMembers[n] = altMembers[n] || []).push(b); });
+  const doneAlt = new Set();
   arr.forEach(b => {
+    const an = b.altInfo && b.altInfo.n;
+    const grp = an && altMembers[an] && altMembers[an].length > 1 ? altMembers[an] : null;
+    if (grp && doneAlt.has(an)) return;
+    const rep = grp ? (grp.find(x=>!isExcluded(x)) || grp[0]) : b;
     if (state.sort==='checkIn' && prev && prev.checkOut && b.checkIn && !state.q && !state.filters.platform && !state.filters.dest && !state.filters.user && !state.filters.misc.size) {
-      const g = daysUntil(b.checkIn) - daysUntil(prev.checkOut);
-      const sameGroup = (b.groupInfo && prev.groupInfo && b.groupInfo.n===prev.groupInfo.n) || (b.altInfo && prev.altInfo && b.altInfo.n===prev.altInfo.n) || isExcluded(b) || isExcluded(prev);
+      const g = daysUntil(rep.checkIn) - daysUntil(prev.checkOut);
+      const sameGroup = !!grp || (b.groupInfo && prev.groupInfo && b.groupInfo.n===prev.groupInfo.n) || (b.altInfo && prev.altInfo && b.altInfo.n===prev.altInfo.n) || isExcluded(b) || isExcluded(prev);
       if (g > 0) list.append(el('div',{class:'gap warn'}, `⚠️ ${g} ${g===1?'לילה':'לילות'} בלי מלון (${fmtD(prev.checkOut)} → ${fmtD(b.checkIn)})`));
       else if (g < 0 && !sameGroup) list.append(el('div',{class:'gap bad'}, `⛔ חפיפה של ${-g} ${-g===1?'לילה':'לילות'} עם ${prev.hotel}`));
     }
+    if (grp) { doneAlt.add(an); list.append(altGroup(grp)); prev = rep; return; }
     list.append(card(b)); if (!(prev && b.groupInfo && prev.groupInfo && b.groupInfo.n===prev.groupInfo.n && prev.checkOut > b.checkOut)) prev = b;
   });
 }
@@ -529,13 +553,39 @@ function openFilters() {
   openSheet(box);
 }
 
-function card(b) {
+/* כפילויות: כרטיס אחד עם לשונית לכל אפשרות, והאפשרות שנבחרה היא זו שנספרת */
+async function chooseAlt(b) {
+  try { await api('choose',{id:b.id},'POST'); toast(`✓ נבחר: ${b.hotel} (${b.platform})`); closeSheet(); await load(true); }
+  catch(e) { toast(e.message,true); }
+}
+function altGroup(members) {
+  const A0 = members[0].altInfo; const n = A0.n;
+  const counted = members.find(x=>!isExcluded(x)) || members[0];
+  const chosen = members.find(x=>x.altInfo && x.altInfo.chosen);
+  const viewId = state.altView[n] && members.some(x=>x.id===state.altView[n]) ? state.altView[n] : counted.id;
+  const view = members.find(x=>x.id===viewId) || counted;
+  const sameName = members.every(x=>norm(x.hotel)===norm(members[0].hotel));
+  const label = x => sameName ? (x.platform||'?') : (x.hotel||'').split(' ').slice(0,2).join(' ');
+  const price = x => (x.priceIls!==''&&x.priceIls!=null) ? fmtN((Number(x.priceIls)||0)+(Number(x.extraIls)||0))+' ₪' : money(x.price,x.currency);
+  const diff = members.length===2 ? Math.abs(((Number(members[0].priceIls)||0)+(Number(members[0].extraIls)||0))-((Number(members[1].priceIls)||0)+(Number(members[1].extraIls)||0))) : 0;
+  const box = el('div',{class:'alt-group', style:`--gc:${A0.color||'#ffd8a8'}`},
+    el('div',{class:'ag-head'},
+      el('span',{}, `🔀 ${members.length} אפשרויות לאותם תאריכים`+(diff?` · הפרש ${fmtN(diff)} ₪`:'')),
+      chosen ? el('span',{class:'ag-status ok'}, '✓ בחרת') : el('span',{class:'ag-status pending'}, 'עוד לא בחרת · נספר הזול')),
+    el('div',{class:'ag-tabs', role:'tablist'}, ...members.map(x => el('button',{type:'button', role:'tab', class:'ag-tab'+(x.id===view.id?' on':'')+(!isExcluded(x)?' counted':''), 'aria-selected':String(x.id===view.id), onclick:ev=>{ ev.stopPropagation(); state.altView[n]=x.id; render(); }},
+      el('span',{class:'ag-name'}, (!isExcluded(x)?'✓ ':'')+label(x)), el('b',{}, price(x)), el('span',{class:'ag-sub'}, !isExcluded(x) ? (x.altInfo&&x.altInfo.chosen?'נבחר · נספר':'נספר') : (x.backup?'חלופה':'לא נספר'))))),
+    card(view, {inGroup:true}),
+    isExcluded(view) || !chosen ? el('button',{type:'button', class:'btn primary ag-choose', onclick:ev=>{ ev.stopPropagation(); chooseAlt(view); }}, `✓ זה המלון שבחרתי (${label(view)})`) : el('div',{class:'ag-note'}, 'רק האפשרות שנבחרה נכנסת לסכומים. אפשר לבטל את השנייה מתוך הפרטים שלה.')
+  );
+  return box;
+}
+function card(b, opt={}) {
   const ci = cancelInfo(b);
-  const g = b.groupInfo; const A = b.altInfo; const ex = isExcluded(b);
-  const tint = (A&&A.color) || (g&&g.color) || '';
+  const g = b.groupInfo; const A = opt.inGroup ? null : b.altInfo; const ex = isExcluded(b);
+  const tint = opt.inGroup ? '' : ((A&&A.color) || (g&&g.color) || '');
   const c = el('div',{class:'card'+(tint?' grouped':'')+(ex?' excluded':'')+(A?' alt':''), style:`--pc:${pc(b.platform)}`+(tint?`;--gc:${tint}`:''), onclick:()=>openDetail(b)},
     g ? el('div',{class:'group-badge'}, `🛏 חדר ${g.idx} מתוך ${g.size} במקביל`) : null,
-    b.backup ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✔ נספר · חלופה: ':'⚠️ לא נספר (יקר יותר) · חלופה: ')+(A.others||A.hotels.filter(h=>h!==b.hotel)).join(', ')) : null,
+    (b.backup && !opt.inGroup) ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✔ נספר · חלופה: ':'⚠️ לא נספר (יקר יותר) · חלופה: ')+(A.others||A.hotels.filter(h=>h!==b.hotel)).join(', ')) : null,
     el('div',{class:'c-head'},
       el('div',{}, el('div',{class:'c-title'}, b.hotel||'—'), el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')+(b.roomType?' · '+b.roomType:''))),
       el('span',{class:'badge'}, b.platform||'?')),
@@ -761,6 +811,7 @@ function openDetail(b) {
     el('div',{class:'actions'},
       el('button',{class:'btn primary', onclick:()=>openForm(b)}, '✏️ עריכה'),
       el('button',{class:'btn', onclick:()=>openForm({...b, id:'', confirmation:'', createdAt:''}, b)}, '🔁 הזמנתי מחדש'),
+      (b.altInfo && b.altInfo.n && !b.altInfo.chosen) ? el('button',{class:'btn primary full', onclick:()=>chooseAlt(b)}, '✓ זה המלון שבחרתי (ייספר בסכומים)') : null,
       el('button',{class:'btn full', onclick:async()=>{ try{ await api('update',{id:b.id, booking:{backup:!b.backup}},'POST'); toast(b.backup?'חזר להיספר ✓':'סומן כחלופה (לא נספר)'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, b.backup?'✔ להחזיר לספירה (זו לא חלופה)':'🔁 סמן כחלופה (גיבוי, לא נספר)')),
     el('div',{class:'actions danger-zone'},
       el('button',{class:'btn quiet', onclick:async()=>{ if(!confirm('לסמן את "'+b.hotel+'" ('+b.platform+') כהזמנה שביטלת? היא תעבור לארכיון.')) return; try{ await api('cancel',{id:b.id},'POST'); toast('סומן כבוטל, עבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '❌ ביטלתי את ההזמנה הזו'),
