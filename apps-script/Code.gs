@@ -441,7 +441,7 @@ function syncGroups_() {
   var alts = computeAlts_(all);
   all.forEach(function (r) {
     var g = groups[r.id], a = alts[r.id];
-    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.chosen ? '✓ נבחר · נספר' : a.primary ? 'נספר (הזול, עוד לא נבחר)' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
+    if (a) { bg[r._row - 2] = header.map(function () { return a.color; }); labels[r._row - 2] = [a.toCancel ? ('❌ לבטל! נבחר ' + a.chosenName + (r.freeCancelUntil ? ' · ביטול חינם עד ' + r.freeCancelUntil : '')) : r.backup ? '🔁 חלופה · לא נספר' : ('⚠️ כפול ' + a.n + ' · ' + (a.chosen ? '✓ נבחר · נספר' : a.primary ? 'נספר (הזול, עוד לא נבחר)' : 'לא נספר') + ' · ' + a.others.join(', '))]; }
     else if (g) { bg[r._row - 2] = header.map(function () { return g.color; }); labels[r._row - 2] = ['קבוצה ' + g.n + ' · חדר ' + g.idx + '/' + g.size]; }
   });
   sh.getRange(2, 1, last - 1, header.length).setBackgrounds(bg);
@@ -489,7 +489,7 @@ function computeAlts_(list) {
     keys.forEach(function (h) { byKey[h].rows.forEach(function (r) {
       var others = keys.filter(function (x) { return x !== h; }).map(function (x) { return norm_(byKey[x].name) === norm_(r.hotel) ? ('אותו מלון ב-' + byKey[x].platform) : byKey[x].name; });
       var cheapest = live[0] === h;
-      out[r.id] = { n: n, size: keys.length, members: g.map(function (m) { return m.id; }), hotels: keys.map(function (x) { return byKey[x].name; }), others: others, primary: h === primary, chosen: explicit && h === primary, cheapest: cheapest, auto: !explicit, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
+      out[r.id] = { n: n, size: keys.length, members: g.map(function (m) { return m.id; }), hotels: keys.map(function (x) { return byKey[x].name; }), others: others, primary: h === primary, chosen: explicit && h === primary, toCancel: explicit && h !== primary, chosenName: explicit ? (byKey[primary].name + ' · ' + byKey[primary].platform) : '', cheapest: cheapest, auto: !explicit, color: ALT_COLORS[(n - 1) % ALT_COLORS.length] };
     }); });
   });
   list.forEach(function (r) { if (r.backup && !out[r.id]) out[r.id] = { n: 0, hotels: [], others: [], primary: false, auto: false, color: '#e5e7eb' }; });
@@ -709,7 +709,19 @@ function dailyReminders() {
   var today = new Date(Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd') + 'T00:00:00Z');
   var thresholds = remindersStatus_().days;
   var lines = [];
-  listBookings_().forEach(function (r) {
+  var allR = listBookings_(); var altsR = computeAlts_(allR);
+  var weekly = new Date().getDay() === 0; // תזכורת שבועית ביום ראשון
+  allR.forEach(function (r) {
+    var a = altsR[r.id]; if (!a || !a.toCancel) return;
+    var dl = r.freeCancelUntil ? Math.round((new Date(r.freeCancelUntil + 'T00:00:00Z') - today) / 86400000) : null;
+    if (dl !== null && dl < 0) return;
+    if (weekly || (dl !== null && [30, 14, 7, 3, 2, 1, 0].indexOf(dl) >= 0)) {
+      lines.push('❌ *לא לשכוח לבטל:* ' + r.hotel + ' (' + r.platform + (r.account ? ', יוזר ' + r.account : '') + ')' + (r.confirmation ? ' · #' + r.confirmation : '') + '\n' +
+        'בחרת ב-' + a.chosenName + '. ' + (dl === null ? 'אין ביטול חינם — כדאי לבדוק מול האתר.' : dl === 0 ? '🔴 היום אחרון לביטול חינם!' : 'ביטול חינם עד ' + r.freeCancelUntil + ' (עוד ' + dl + ' ימים).'));
+    }
+  });
+  allR.forEach(function (r) {
+    if (altsR[r.id] && altsR[r.id].toCancel) return;
     if (!r.freeCancelUntil) return;
     var d = new Date(r.freeCancelUntil + 'T00:00:00Z');
     var days = Math.round((d - today) / 86400000);
