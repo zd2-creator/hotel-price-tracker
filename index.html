@@ -48,6 +48,13 @@ b,strong{font-weight:700}
 .stat-row b{font-size:14px;font-weight:700;color:#fff}
 .stat-row .sep{color:rgba(255,255,255,.32)}
 /* grand total: one soft card, paid line docks under it as a footer strip */
+.money-rows{margin-top:6px;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
+.mrow{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:12px;font-size:13px;color:rgba(255,255,255,.78)}
+.mrow b{color:#fff}
+.mrow > b{font-size:15px;font-weight:700;text-align:left}
+.mrow.main{color:rgba(255,255,255,.95)}
+.mrow.main > b{font-size:19px;font-weight:800}
+.mrow .mn{font-size:12.5px;min-width:92px;text-align:left}
 .grand{margin-top:12px;padding:11px 14px;border-radius:14px;background:rgba(255,255,255,.15);display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 12px;font-variant-numeric:tabular-nums}
 .grand:has(+ .paid-line:not([hidden])){border-radius:14px 14px 0 0}
 .grand .g-label{grid-column:1;grid-row:1;font-size:13px;font-weight:600;opacity:.95}
@@ -312,12 +319,10 @@ button.pill::before{content:"";position:absolute;inset:-5px}
     <div class="hero"><b id="sNights">–</b><span>מתוך <span id="sTarget">21</span> לילות</span></div>
     <div class="bar"><i id="bar"></i></div>
     <div class="stats">
-      <div class="stat-row">
-        <span>🏨 מלונות: <b id="sTotal">–</b></span><span class="sep">·</span>
-        <span><b id="sCount">–</b> מלונות</span><span id="sExcl" hidden></span>
-      </div>
-      <div class="stat-row">
-        <span>ממוצע ללילה: <b id="sAvg">–</b></span><span id="sAvgExtra" hidden><span class="sep">·</span> <span>בלי תוספות: <b id="sAvgX">–</b></span></span>
+      <div class="stat-row hdr"><span>🏨 <b id="sCount">–</b> מלונות נספרים</span><span id="sExcl" hidden></span></div>
+      <div class="money-rows">
+        <div class="mrow main"><span class="ml" id="sTotLbl">מחיר שנסגר</span><b id="sTotal">–</b><span class="mn"><b id="sAvg">–</b> ללילה</span></div>
+        <div class="mrow" id="sBaseRow" hidden><span class="ml">בלי תוספות</span><b id="sBase">–</b><span class="mn"><b id="sAvgX">–</b> ללילה</span></div>
       </div>
     </div>
     <div class="grand" id="grandRow" hidden><span class="g-label">💰 סה״כ הוצאות הטיול</span><b id="sGrand">–</b><span class="g-sub" id="sGrandSub"></span></div>
@@ -494,16 +499,18 @@ function render() {
   const target = S.targetNights || 21;
   $('#sNights').textContent = S.nights;
   $('#sTarget').textContent = target;
-  $('#sTotal').textContent = fmtN(S.totalIls) + ' ₪';
-  const HX = Number(S.hotelsIls)||Number(S.totalIls)||0; // ממוצע ללילה כולל תוספות במלון
-  $('#sAvg').textContent = S.nights>0 ? fmtN(HX/S.nights) + ' ₪' + (HX>Number(S.totalIls)?' (כולל תוספות)':'') : '–';
-  $('#sExcl').hidden = !S.excluded; $('#sExcl').textContent = S.excluded ? ` (${S.excluded} חלופות לא נספרות)` : '';
-  $('#sAvgExtra').hidden = !(S.nights>0 && HX>Number(S.totalIls)); $('#sAvgX').textContent = S.nights>0 ? fmtN(S.totalIls/S.nights)+' ₪' : '–';
+  // סכום המלונות: שורה ראשית = סופי כולל תוספות במלון; שורה שנייה = המחיר שנסגר בלי תוספות (רק כשיש תוספות)
+  const BASE = Number(S.totalIls)||0, HX = Number(S.hotelsIls)||BASE, hasX = HX > BASE, NN = Number(S.nights)||0;
+  $('#sTotLbl').textContent = hasX ? 'סופי כולל תוספות' : 'מחיר שנסגר';
+  $('#sTotal').textContent = fmtN(HX) + ' ₪';
+  $('#sAvg').textContent = NN ? fmtN(HX/NN) + ' ₪' : '–';
+  $('#sBaseRow').hidden = !hasX; $('#sBase').textContent = fmtN(BASE) + ' ₪'; $('#sAvgX').textContent = NN ? fmtN(BASE/NN) + ' ₪' : '–';
+  $('#sExcl').hidden = !S.excluded; $('#sExcl').textContent = S.excluded ? ` · ${S.excluded} חלופות לא נספרות` : '';
   const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
-  const parts = [['מלונות', Number(B0.hotelsIls)||0], ['תוספות', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
+  const parts = [['מלונות (שנסגר)', Number(B0.hotelsIls)||0], ['תוספות במלון', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
   const PS = paidSplit(); $('#paidLine').hidden = !(PS.paid||PS.left); $('#paidLine').innerHTML = `<span>✅ שולם <b>${fmtN(PS.paid)} ₪</b></span><span class="sep">·</span><span>⏳ נשאר לשלם <b>${fmtN(PS.left)} ₪</b></span>`;
   $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
-  $('#sCount').textContent = S.count;
+  $('#sCount').textContent = Math.max(0,(Number(S.count)||0)-(Number(S.excluded)||0));
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
   // שורת התראות: מצב התזכורות + הביטול הקרוב ביותר (מוסתרת כשהתזכורות פעילות ואין ביטול קרוב)
   const R = state.reminders, active = !!(R && R.active); const al=$('#alertLine'); al.innerHTML=''; al.classList.toggle('off', !active);
@@ -537,7 +544,7 @@ function render() {
   const cnt = arr.filter(b=>!isExcluded(b));
   const fn = distinctNights(cnt); const rn = cnt.reduce((n,b)=>n+(Number(b.nights)||0),0);
   const fils = cnt.reduce((n,b)=>n+(Number(b.priceIls)||0)+(Number(b.extraIls)||0),0);
-  list.append(el('div',{class:'count-line'}, `${arr.length} הזמנות · ${fn} לילות${rn>fn?' ('+rn+' לילות-חדר)':''} · ${fmtN(fils)} ₪${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
+  list.append(el('div',{class:'count-line'}, `${cnt.length} נספרים · ${fn} לילות${rn>fn?' ('+rn+' לילות-חדר)':''} · ${fmtN(fils)} ₪ כולל תוספות${fn>0?' · '+fmtN(fils/fn)+' ₪/לילה':''}`));
 
   let prev = null;
   const altMembers = {}; arr.forEach(b => { const n = b.altInfo && b.altInfo.n; if (n) (altMembers[n] = altMembers[n] || []).push(b); });
@@ -686,7 +693,7 @@ function renderBudget() {
   const box=$('#budget'); box.innerHTML='';
   const B = state.budget || { hotelsIls:0, extrasIls:0, byCategory:{}, expensesIls:0, totalIls:0, targetBudget:0 };
   const target = Number(B.targetBudget || get(LS.budget) || 0);
-  const rows = [['🏨','מלונות (הזמנות)', B.hotelsIls], ['🛏','תוספות במלון', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
+  const rows = [['🏨','מלונות · מחיר שנסגר', B.hotelsIls], ['🛏','תוספות במלון (מיטה וכו׳)', B.extrasIls], ...EXP_CATS.map(([c,i])=>[i, c, (B.byCategory||{})[c]||0])].filter(r=>r[2]>0);
   const hero = el('div',{class:'bcard main'},
     el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'💰 סה״כ הוצאות הטיול · מלונות + הכל')),
     target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
