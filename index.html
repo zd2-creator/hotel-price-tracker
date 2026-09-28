@@ -233,18 +233,22 @@ button.pill::before{content:"";position:absolute;inset:-5px}
   body{background:#fff!important}
   .app,.fab,.sheet,.sheet-bg,.toast,.loading,.tabbar{display:none!important}
   #printView{display:block!important;font-family:Heebo,Arial,sans-serif;color:#111;padding:0;font-size:12px;direction:rtl}
-  @page{size:A4;margin:14mm 12mm}
+  @page{size:A4 landscape;margin:12mm 10mm}
 }
 #printView .p-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:12px}
 #printView h1{margin:0;font-size:22px;color:#0f766e}
 #printView .p-sub{color:#555;font-size:12px}
 #printView .p-sum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:12.5px}
 #printView .p-sum b{font-size:15px;display:block}
-#printView table{width:100%;border-collapse:collapse;font-size:11.5px;page-break-inside:auto}
-#printView th{background:#e6f4f1;color:#0f5132;text-align:right;padding:6px 6px;border-bottom:1px solid #b5d9cf;font-weight:700;white-space:nowrap}
-#printView td{padding:6px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top}
-#printView td:nth-child(2){min-width:120px;font-weight:600}
-#printView td:nth-child(4){white-space:nowrap}
+#printView table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;table-layout:auto}
+#printView th{background:#e6f4f1;color:#0f5132;text-align:right;padding:6px 5px;border-bottom:1px solid #b5d9cf;font-weight:700;white-space:normal;line-height:1.2;vertical-align:bottom}
+#printView td{padding:6px 5px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+#printView td.hotel{min-width:90px;font-weight:700}
+#printView td.nowrap{white-space:nowrap}
+#printView td.key{background:#f0fdf9}
+#printView td.key b{color:#0f5132;font-size:12px}
+#printView td.key.warn b{color:#b45309}
+#printView th.k{background:#cdeee4}
 #printView tr{page-break-inside:avoid}
 #printView tr.dup td{background:#fff7ed}
 #printView td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -662,13 +666,13 @@ function openExpenseForm(e={}) {
 
 /* ====== הדפסה / PDF ====== */
 function openPrint() {
-  const opts = { dups: false, prices: true, confirm: true, notes: true, extras: true, cancel: true, users: false };
+  const opts = { dups: false, prices: true, confirm: true, notes: false, extras: true, cancel: true, users: false };
   const cb = (label, key, hint) => { const s=el('div',{class:'switch'+(opts[key]?' on':'')}); return el('div',{class:'toggle', onclick:()=>{opts[key]=!opts[key]; s.classList.toggle('on',opts[key]);}}, el('div',{}, el('b',{},label), hint?el('div',{class:'hint'},hint):null), s); };
   openSheet(el('div',{},
     el('h2',{},'🖨 הדפסה / שמירה כ-PDF'),
     el('div',{class:'hint'}, 'נפתח חלון ההדפסה של הטלפון. בוחרים "שמירה כ-PDF" ואז אפשר לשלוח בוואטסאפ/מייל.'),
     cb('לכלול כפילויות / חלופות', 'dups', 'כבוי = רק המלונות שנספרים (הצעה נקייה)'),
-    cb('מחירים', 'prices'), cb('מספרי הזמנה', 'confirm'), cb('ביטול חינם עד', 'cancel'), cb('תוספות במלון', 'extras'), cb('הערות', 'notes'), cb('יוזר שהזמין', 'users'),
+    cb('מחירים', 'prices'), cb('ביטול חינם + מועד תשלום', 'cancel'), cb('תוספות במלון (מיטה וכו׳)', 'extras'), cb('מספרי הזמנה', 'confirm'), cb('הערות', 'notes', 'כבוי = דף נקי'), cb('יוזר שהזמין', 'users'),
     el('div',{class:'actions'}, el('button',{type:'button',class:'btn ghost', onclick:closeSheet},'ביטול'), el('button',{type:'button',class:'btn primary', onclick:()=>{ buildPrint(opts); closeSheet(); setTimeout(()=>window.print(), 150); }}, '🖨 הדפסה'))
   ));
 }
@@ -677,39 +681,54 @@ function buildPrint(o) {
   const rows = o.dups ? all : all.filter(b=>!isExcluded(b));
   const counted = rows.filter(b=>!isExcluded(b));
   const nights = distinctNights(counted);
-  const total = counted.reduce((n,b)=>n+(Number(b.priceIls)||0)+(o.extras?(Number(b.extraIls)||0):0),0);
+  const base = counted.reduce((n,b)=>n+(Number(b.priceIls)||0),0);
+  const extras = counted.reduce((n,b)=>n+(Number(b.extraIls)||0),0);
+  const total = base + (o.extras?extras:0);
   const first = counted[0], last = counted[counted.length-1];
   const D = new Date(); const today = `${D.getDate()}.${D.getMonth()+1}.${D.getFullYear()}`;
   const v = document.querySelector('#printView'); v.innerHTML='';
   v.append(el('div',{class:'p-head'}, el('div',{}, el('h1',{},'הצעת מלונות · הטיול'), el('div',{class:'p-sub'}, (first?`${fmtD(first.checkIn,true)} עד ${fmtD(last.checkOut,true)} · `:'')+`${counted.length} מלונות · ${nights} לילות`)), el('div',{class:'p-sub'}, 'הופק '+today)));
-  if (o.prices) v.append(el('div',{class:'p-sum'}, el('div',{}, el('b',{}, fmtN(total)+' ₪'), 'סה״כ מלונות'+(o.extras?' (כולל תוספות)':'')), el('div',{}, el('b',{}, nights?fmtN(total/nights)+' ₪':'—'), 'ממוצע ללילה'), el('div',{}, el('b',{}, String(nights)), 'לילות')));
-  const th = ['#','מלון','יעד','תאריכים','לילות','סוג חדר','ארוחת בוקר','הוזמן דרך'];
-  if (o.prices) th.push('מחיר','ללילה');
+  if (o.prices) v.append(el('div',{class:'p-sum'},
+    el('div',{}, el('b',{}, fmtN(total)+' ₪'), 'סה״כ מלונות'+(o.extras&&extras?' כולל תוספות':'')),
+    (o.extras&&extras) ? el('div',{}, el('b',{}, fmtN(base)+' ₪'), 'בלי תוספות') : null,
+    el('div',{}, el('b',{}, nights?fmtN(total/nights)+' ₪':'—'), 'ממוצע ללילה'+(o.extras&&extras?' כולל תוספות':'')),
+    el('div',{}, el('b',{}, String(nights)), 'לילות')));
+  const th = ['#','מלון','יעד','תאריכים','לילות','חדר','א. בוקר','דרך'];
+  if (o.prices) { th.push('מחיר סופי במטבע המקומי'); if (o.extras) th.push('תוספת במלון'); th.push('סה״כ ₪', 'ללילה ₪'); if (o.extras) th.push('ללילה כולל תוספת'); }
   if (o.cancel) th.push('ביטול חינם עד');
+  if (o.cancel) th.push('מועד תשלום');
   if (o.confirm) th.push('מספר הזמנה');
   if (o.users) th.push('יוזר');
-  const tbl = el('table',{}, el('thead',{}, el('tr',{}, ...th.map(h=>el('th',{},h)))));
+  const KEY = ['מחיר סופי במטבע המקומי','ללילה כולל תוספת','ביטול חינם עד','מועד תשלום'];
+  const tbl = el('table',{}, el('thead',{}, el('tr',{}, ...th.map(h=>el('th',{class:KEY.includes(h)?'k':''},h)))));
   const tb = el('tbody',{});
+  const B = (t,cls='') => { const d=el('td',{class:'num key '+cls}); d.append(el('b',{},t)); return d; };
+  const T = (t,cls='') => el('td',{class:cls}, t);
   rows.forEach((b,i)=>{
     const ex = isExcluded(b);
-    const tds = [String(i+1), b.hotel||'', b.destination||'', `${fmtD(b.checkIn,true)} – ${fmtD(b.checkOut,true)}`, String(b.nights||''), b.roomType||'—', b.breakfast?'כלול':'לא כלול', b.platform||''];
-    if (o.prices) { const ils=Number(b.priceIls)||0; tds.push(`${fmtN(ils)} ₪`+(b.currency&&b.currency!=='ILS'?` (${money(b.price,b.currency)})`:''), b.nights?fmtN(ils/b.nights)+' ₪':'—'); }
-    if (o.cancel) tds.push(b.freeCancelUntil?fmtD(b.freeCancelUntil,true):'ללא ביטול');
-    if (o.confirm) tds.push(b.confirmation||'—');
-    if (o.users) tds.push(b.account||'—');
-    const tr = el('tr',{class:ex?'dup':''}, ...tds.map((t,j)=>el('td',{class:(o.prices&&(j===8||j===9))?'num':''}, t)));
-    tb.append(tr);
+    const ils = Number(b.priceIls)||0, exIls = Number(b.extraIls)||0, n = Number(b.nights)||0;
+    const cells = [T(String(i+1)), T(b.hotel||'','hotel'), T(b.destination||''), T(`${fmtD(b.checkIn,true)} – ${fmtD(b.checkOut,true)}`,'nowrap'), T(String(n||'')), T(b.roomType||'—'), T(b.breakfast?'כלול':'לא כלול'), T(b.platform||'')];
+    if (o.prices) {
+      cells.push(B(money(b.price,b.currency)));
+      if (o.extras) cells.push(exIls ? T(`${money(b.extraPrice,b.currency)}${b.extraNote?' · '+b.extraNote:''}`,'num') : T('—'));
+      cells.push(T(fmtN(ils)+' ₪','num'), T(n?fmtN(ils/n)+' ₪':'—','num'));
+      if (o.extras) cells.push(B(n?fmtN((ils+exIls)/n)+' ₪':'—'));
+    }
+    if (o.cancel) cells.push(B(b.freeCancelUntil?fmtD(b.freeCancelUntil,true):'ללא ביטול', b.freeCancelUntil?'':'warn'));
+    if (o.cancel) cells.push(B(b.paid?'שולם':(b.paymentDate?fmtD(b.paymentDate,true):'במלון')));
+    if (o.confirm) cells.push(T(b.confirmation||'—','num'));
+    if (o.users) cells.push(T(b.account||'—'));
+    tb.append(el('tr',{class:ex?'dup':''}, ...cells));
     const notes = [];
-    if (ex) notes.push(b.backup?'חלופה (לא נספרת בסכום)':'כפילות: לא נספרת בסכום, נספר המלון הזול'+(b.altInfo&&b.altInfo.others?' ('+b.altInfo.others.join(', ')+')':''));
+    if (ex) notes.push(b.backup?'חלופה (לא נספרת בסכום)':'כפילות: לא נספרת בסכום, נספר המלון הזול');
     if (b.groupInfo) notes.push(`חדר ${b.groupInfo.idx} מתוך ${b.groupInfo.size} במקביל`);
-    if (o.extras && Number(b.extraIls)>0) notes.push(`תוספת במלון: ${money(b.extraPrice,b.currency)}${b.extraNote?' ('+b.extraNote+')':''}${b.currency!=='ILS'?' ≈ '+fmtN(b.extraIls)+' ₪':''}`);
     if (o.notes && b.notes) notes.push(b.notes);
     if (notes.length) tb.append(el('tr',{class:ex?'dup':''}, el('td',{}), el('td',{colspan:String(th.length-1), class:'note'}, notes.join(' · '))));
   });
   tbl.append(tb); v.append(tbl);
   const gaps=[]; for (let i=1;i<counted.length;i++){ const g=daysUntil(counted[i].checkIn)-daysUntil(counted[i-1].checkOut); if (g>0) gaps.push(`${g} ${g===1?'לילה':'לילות'} בלי מלון בין ${fmtD(counted[i-1].checkOut,true)} ל-${fmtD(counted[i].checkIn,true)}`); }
   if (gaps.length) v.append(el('div',{class:'p-gaps'}, '⚠️ '+gaps.join(' · ')));
-  v.append(el('div',{class:'p-foot'}, 'המחירים בשקלים לפי שער ההמרה ביום ההזמנה. "ביטול חינם עד" = המועד האחרון לביטול ללא עלות.'));
+  v.append(el('div',{class:'p-foot'}, 'מודגש: מחיר סופי במטבע המקומי, מחיר ללילה כולל תוספת, מועד ביטול חינם ומועד תשלום. הסכומים בשקלים לפי שער ההמרה ביום ההזמנה. "במלון" = תשלום בהגעה.'));
 }
 
 /* ====== Bottom sheet ====== */
