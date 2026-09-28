@@ -124,6 +124,18 @@ b,strong{font-weight:700}
 .c-dates{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
 .c-dates .n{display:inline-flex;align-items:center;height:24px;background:var(--brand-soft);color:var(--brand-ink);padding:0 8px;border-radius:8px;font-size:12px;font-weight:600}
 .c-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 12px;margin-top:12px;flex-wrap:wrap}
+.pb{min-width:0;font-variant-numeric:tabular-nums}
+.pb-lbl{font-size:11.5px;color:var(--muted);font-weight:600}
+.pb-big{font-size:20px;font-weight:800;letter-spacing:-.3px;line-height:1.2}
+.pb-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.35}
+.pb.has-extra{flex:1 1 100%;background:var(--fill);border-radius:12px;padding:8px 10px}
+.pb-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.pb-row .v{font-weight:700;white-space:nowrap}
+.pb-row .v small{font-weight:500;color:var(--muted);font-size:11.5px}
+.pb-row.extra{color:var(--warn)}.pb-row.extra .v{color:var(--warn)}
+.pb-row.total{border-top:1px solid var(--line);margin-top:4px;padding-top:4px;font-size:14px;color:var(--ink);font-weight:700}
+.pb-row.total .v{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.card.excluded .pb-big,.card.excluded .pb-row.total{color:var(--ink-2)}
 .price{font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.2;font-variant-numeric:tabular-nums}
 .price small{display:block;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0;margin-top:2px;line-height:1.35}
 .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -579,6 +591,21 @@ function altGroup(members) {
   );
   return box;
 }
+/* בלוק מחיר: מחיר שנסגר, תוספת במלון, וסופי כולל תוספות (עם מחיר ללילה) */
+function priceBlock(b) {
+  const has = b.priceIls!==''&&b.priceIls!=null;
+  const ils = Number(b.priceIls)||0, ex = Number(b.extraIls)||0, n = Number(b.nights)||0;
+  const orig = (b.currency&&b.currency!=='ILS'&&b.price!=='') ? money(b.price,b.currency) : '';
+  if (!ex) return el('div',{class:'pb'},
+    el('div',{class:'pb-lbl'}, 'מחיר שנסגר'),
+    el('div',{class:'pb-big'}, has ? fmtN(ils)+' ₪' : money(b.price,b.currency)),
+    el('div',{class:'pb-sub'}, [n&&has?fmtN(ils/n)+' ₪ ללילה':'', orig].filter(Boolean).join(' · ')));
+  return el('div',{class:'pb has-extra'},
+    el('div',{class:'pb-row'}, el('span',{}, 'מחיר שנסגר'), el('span',{class:'v'}, has?fmtN(ils)+' ₪':money(b.price,b.currency), orig?el('small',{}, ' '+orig):null)),
+    el('div',{class:'pb-row extra'}, el('span',{}, '+ '+(b.extraNote||'תוספת')+' (במלון)'), el('span',{class:'v'}, fmtN(ex)+' ₪', (b.currency&&b.currency!=='ILS'&&b.extraPrice!=='')?el('small',{}, ' '+money(b.extraPrice,b.currency)):null)),
+    el('div',{class:'pb-row total'}, el('span',{}, 'סופי כולל תוספות'), el('span',{class:'v'}, fmtN(ils+ex)+' ₪')),
+    n ? el('div',{class:'pb-sub'}, `${fmtN((ils+ex)/n)} ₪ ללילה סופי · ${fmtN(ils/n)} ₪ בלי התוספת`) : null);
+}
 function card(b, opt={}) {
   const ci = cancelInfo(b);
   const g = b.groupInfo; const A = opt.inGroup ? null : b.altInfo; const ex = isExcluded(b);
@@ -591,9 +618,7 @@ function card(b, opt={}) {
       el('span',{class:'badge'}, b.platform||'?')),
     el('div',{class:'c-dates'}, `${fmtD(b.checkIn)} ← ${fmtD(b.checkOut)}`, el('span',{class:'n'}, `${b.nights||'?'} לילות`)),
     el('div',{class:'c-foot'},
-      el('div',{class:'price'}, b.priceIls!==''&&b.priceIls!=null ? fmtN(b.priceIls)+' ₪' : money(b.price,b.currency),
-        el('small',{}, (b.priceIls!==''&&b.priceIls!=null&&b.nights>0 ? fmtN(b.priceIls/b.nights)+' ₪ ללילה' : ''), (b.currency&&b.currency!=='ILS'&&b.price!=='') ? ' · '+money(b.price,b.currency) : ''),
-        (b.extraIls!==''&&b.extraIls!=null&&Number(b.extraIls)>0) ? el('small',{style:'color:var(--warn)'}, `+ ${fmtN(b.extraIls)} ₪ במלון${b.extraNote?' ('+b.extraNote+')':''}${b.nights>0&&b.priceIls!==''?' = '+fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ ללילה':''}`) : null),
+      priceBlock(b),
       el('div',{class:'tags'},
         el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
