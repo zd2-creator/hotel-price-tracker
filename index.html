@@ -14,10 +14,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+/* palette: brand teal + neutrals + 3 semantic accents (soft bg / ink text), 2 neutral group tints. Nothing else. */
 :root{
-  --bg:#f4f6f8;--card:#fff;--ink:#111827;--ink-2:#374151;--muted:#6b7280;--line:#e6e9ee;--line-soft:#eef1f4;--fill:#f3f5f8;
+  /* neutrals */
+  --bg:#f4f6f8;--card:#fff;--ink:#111827;--ink-2:#374151;--ink-3:#4b5563;--muted:#5f6775;--faint:#9ca3af;
+  --line:#e6e9ee;--line-soft:#eef1f4;--line-strong:#d5dae1;--fill:#f1f3f6;--fill-soft:#f7f9fb;
+  /* brand */
   --brand:#0f766e;--brand-ink:#0b5e58;--brand-soft:#e3f5f2;
-  --ok:#166534;--ok-soft:#e6f5ec;--warn:#92400e;--warn-soft:#fdf2e0;--bad:#991b1b;--bad-soft:#fdeceb;--info:#1e40af;--info-soft:#e8effc;
+  /* semantic: good / warning / urgent */
+  --ok:#166534;--ok-soft:#e7f4ec;--warn:#92400e;--warn-soft:#fdf1de;--bad:#991b1b;--bad-soft:#fdecec;
+  /* group tints (client-side, server colors ignored): alternatives = warm grey, parallel rooms = teal-grey */
+  --tint-alt:#f2efea;--tint-alt-strong:#e9e5de;--tint-par:#eef5f3;--tint-par-strong:#e0ede9;
   --radius:16px;--r-sm:10px;--shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 *{box-sizing:border-box}
@@ -40,8 +47,8 @@ b,strong{font-weight:700}
 .hero span{font-size:14px;font-weight:500;color:rgba(255,255,255,.82)}
 .hero #sTarget{font-weight:700;color:#fff}
 .bar{height:5px;background:rgba(255,255,255,.18);border-radius:99px;margin-top:8px;overflow:hidden}
-.bar i{display:block;width:0;height:100%;background:#a7f3d0;border-radius:99px;transition:width .4s}
-.bar i.over{background:#fca5a5}
+.bar i{display:block;width:0;height:100%;background:rgba(255,255,255,.88);border-radius:99px;transition:width .4s}
+.bar i.over{background:var(--bad-soft)}
 /* hotels block: two quiet stat lines under a hairline */
 .stats{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;gap:3px}
 .stat-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:12.5px;color:rgba(255,255,255,.74);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
@@ -68,7 +75,7 @@ b,strong{font-weight:700}
 .tools{padding:12px 16px 0}
 .search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 12px;min-height:48px;box-shadow:var(--shadow);color:var(--muted)}
 .search input{flex:1;min-width:0;min-height:46px;border:0;outline:0;background:none;font-size:16px;color:var(--ink)}
-.search input::placeholder{color:#9ca3af}
+.search input::placeholder{color:var(--faint)}
 .search .clear{flex:0 0 44px;width:44px;height:44px;margin-inline-end:-8px;display:grid;place-items:center;color:var(--muted);font-size:16px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:8px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent)}
 .chips::-webkit-scrollbar{display:none}
@@ -76,7 +83,6 @@ b,strong{font-weight:700}
 .chip{flex:0 0 auto;min-height:44px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:13.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;scroll-snap-align:end}
 .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .chip.filter{font-weight:600}
-.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
 .chip .x{flex:0 0 auto;font-size:11px;opacity:.7}
 .chip .cnt{flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
 .chip.on .cnt{background:#fff;color:var(--brand)}
@@ -94,15 +100,19 @@ b,strong{font-weight:700}
 /* list */
 .list{padding:8px 16px 0;display:flex;flex-direction:column;gap:12px}
 .gap{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--muted);padding:0 4px}
-.gap::before,.gap::after{content:"";flex:1;border-top:1px dashed #d5dae1}
+.gap::before,.gap::after{content:"";flex:1;border-top:1px dashed var(--line-strong)}
 .gap.warn{color:var(--warn)}.gap.bad{color:var(--bad)}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;border:1px solid transparent;position:relative;overflow:hidden}
 .card:active{transform:scale(.995)}
 .card::before{content:none}
 /* linked bookings: calm background tint only, no colored border, no side bar */
-.card.grouped{background:color-mix(in srgb,var(--gc) 22%,#fff);border-color:transparent}
+/* one tint per group KIND (not per group): parallel rooms = teal-grey, alternatives = warm grey */
+.card.grouped{--gc:var(--tint-par);background:var(--gc);border-color:transparent}
+.card.grouped.alt{--gc:var(--tint-alt)}
+/* on a tinted card, neutral inner surfaces go white so they don't blend into the tint */
+.card.grouped .badge,.card.grouped .pb.has-extra,.card.grouped .tag:not(.ok):not(.warn):not(.bad){background:rgba(255,255,255,.75)}
 .card.excluded{opacity:.82}
-.alt-group{background:color-mix(in srgb,var(--gc) 20%,#fff);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
+.alt-group{--gc:var(--tint-alt);background:var(--gc);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
 .alt-group .card{box-shadow:none;border:1px solid var(--line-soft)}
 .alt-group .card.excluded{opacity:.9}
 .ag-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:2px 4px 8px}
@@ -111,7 +121,7 @@ b,strong{font-weight:700}
 .ag-status.ok{background:var(--ok-soft);color:var(--ok)}.ag-status.pending{background:var(--warn-soft);color:var(--warn)}
 .ag-tabs{display:flex;gap:8px;padding-bottom:10px;overflow-x:auto;scrollbar-width:none}
 .ag-tabs::-webkit-scrollbar{display:none}
-.ag-tab{flex:1 1 0;min-width:96px;min-height:56px;border-radius:12px;background:#fff;border:1px solid var(--line);padding:6px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.25;color:var(--ink-2)}
+.ag-tab{flex:1 1 0;min-width:96px;min-height:56px;border-radius:12px;background:var(--card);border:1px solid var(--line);padding:6px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.25;color:var(--ink-2)}
 .ag-tab .ag-name{font-size:12.5px;font-weight:600}
 .ag-tab b{font-size:15px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 .ag-tab .ag-sub{font-size:11px;color:var(--muted)}
@@ -127,22 +137,23 @@ b,strong{font-weight:700}
 .ag-note.bad{color:var(--bad);font-weight:600}
 .alt-badge.bad{background:var(--bad-soft);color:var(--bad)}
 /* red "to cancel" pill: its own full-width row in the header, long text ellipsizes (inner .t) */
-.pill.tocancel{background:#fee2e2;color:#991b1b;font-weight:700;flex:1 1 100%;min-width:0;display:flex;align-items:center;justify-content:center}
+.pill.tocancel{background:var(--bad-soft);color:var(--bad);font-weight:700;flex:1 1 100%;min-width:0;display:flex;align-items:center;justify-content:center}
 .pill.tocancel .t{min-width:0;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext}
 .cancel-banner{background:var(--bad-soft);border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;color:var(--bad);font-size:13px}
 .cancel-banner b{font-size:14px}
 .cancel-banner .btn{margin-top:2px}
-.ag-note{font-size:11.5px;color:var(--muted);text-align:center;padding:8px 4px 0}
+.ag-note{font-size:11.5px;color:var(--ink-3);text-align:center;padding:8px 4px 0}
 .card.excluded .c-title,.card.excluded .price{color:var(--ink-2)}
 .alt-badge,.group-badge{display:inline-flex;align-items:center;min-height:24px;font-size:11.5px;font-weight:600;border-radius:8px;padding:3px 8px;margin-bottom:8px;line-height:1.3;max-width:100%}
-.alt-badge.on{background:var(--ok-soft);color:var(--ok)}.alt-badge.off{background:var(--warn-soft);color:var(--warn)}
-.group-badge{color:var(--ink-2);background:color-mix(in srgb,var(--gc) 85%,#fff)}
+.alt-badge.on{background:var(--ok-soft);color:var(--ok)}.alt-badge.off{background:var(--tint-alt-strong);color:var(--ink-3)}
+.group-badge{color:var(--ink-2);background:var(--tint-par-strong)}
 .group-badge+.alt-badge{margin-inline-start:6px}
 .c-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .c-head>div:first-child{min-width:0;flex:1}
 .c-title{font-weight:700;font-size:16.5px;line-height:1.3;letter-spacing:-.1px}
 .c-sub{color:var(--muted);font-size:13px;line-height:1.4;margin-top:2px}
-.badge{display:inline-flex;align-items:center;height:24px;gap:4px;padding:0 9px;border-radius:8px;font-size:11.5px;font-weight:600;white-space:nowrap;background:color-mix(in srgb,var(--pc,#94a3b8) 11%,#fff);color:color-mix(in srgb,var(--pc,#94a3b8) 82%,#000);border:1px solid color-mix(in srgb,var(--pc,#94a3b8) 22%,#fff);flex:0 0 auto;margin-top:1px}
+/* platform badge: neutral for every platform, the name is the identity */
+.badge{display:inline-flex;align-items:center;height:24px;gap:4px;padding:0 9px;border-radius:8px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--fill);color:var(--ink-3);flex:0 0 auto;margin-top:1px}
 .c-dates{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
 .c-dates .n{display:inline-flex;align-items:center;height:24px;background:var(--brand-soft);color:var(--brand-ink);padding:0 8px;border-radius:8px;font-size:12px;font-weight:600}
 .c-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 12px;margin-top:12px;flex-wrap:wrap}
@@ -154,15 +165,16 @@ b,strong{font-weight:700}
 .pb-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--ink-2);line-height:1.5}
 .pb-row .v{font-weight:700;white-space:nowrap}
 .pb-row .v small{font-weight:500;color:var(--muted);font-size:11.5px}
-.pb-row.extra{color:var(--warn)}.pb-row.extra .v{color:var(--warn)}
+.pb-row.extra{color:var(--ink-3)}.pb-row.extra .v{color:var(--ink-2)}
 .pb-row.total{border-top:1px solid var(--line);margin-top:4px;padding-top:4px;font-size:14px;color:var(--ink);font-weight:700}
 .pb-row.total .v{font-size:18px;font-weight:800;letter-spacing:-.3px}
 .card.excluded .pb-big,.card.excluded .pb-row.total{color:var(--ink-2)}
 .price{font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.2;font-variant-numeric:tabular-nums}
 .price small{display:block;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0;margin-top:2px;line-height:1.35}
 .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.tag{display:inline-flex;align-items:center;height:26px;font-size:12px;padding:0 8px;border-radius:8px;background:var(--fill);color:#4b5563;font-weight:600;white-space:nowrap;line-height:1}
-.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.info{background:var(--info-soft);color:var(--info)}
+.tag{display:inline-flex;align-items:center;height:26px;font-size:12px;padding:0 8px;border-radius:8px;background:var(--fill);color:var(--ink-3);font-weight:600;white-space:nowrap;line-height:1}
+/* tags are neutral by default; accents only for state: ok = chosen/counted, warn = soon (≤14d), bad = urgent (≤3d / overdue / to-cancel) */
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}
 .empty{text-align:center;color:var(--muted);padding:48px 24px 24px;font-size:15px;line-height:1.5}
 .empty b{display:block;font-size:40px;margin-bottom:12px;line-height:1}
 .empty .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;margin-top:16px}
@@ -180,7 +192,7 @@ b,strong{font-weight:700}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);border-radius:22px 22px 0 0;max-height:92dvh;overflow:auto;overscroll-behavior:contain;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);padding:0 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 .sheet.open{transform:none}
 .sheet-top{position:relative;height:44px;display:flex;justify-content:center;align-items:flex-start;padding-top:8px}
-.handle{width:36px;height:4px;border-radius:99px;background:#d8dce3}
+.handle{width:36px;height:4px;border-radius:99px;background:var(--line-strong)}
 .sheet-close{position:absolute;top:0;inset-inline-end:-8px;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:var(--muted);font-size:17px}
 .sheet-close:active{background:var(--fill)}
 .sheet h2{font-size:19px;margin:0 0 12px;font-weight:700;line-height:1.3;letter-spacing:-.1px}
@@ -189,7 +201,7 @@ b,strong{font-weight:700}
 .sheet-head .badge{margin-top:3px}
 .sheet .c-sub{margin-top:3px;margin-bottom:10px}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.kv div{background:#f7f9fb;border-radius:12px;padding:9px 12px;min-width:0}
+.kv div{background:var(--fill-soft);border-radius:12px;padding:9px 12px;min-width:0}
 .kv div.full{grid-column:1/-1}
 .kv label{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-bottom:2px}
 .kv span{font-weight:600;font-size:14.5px;word-break:break-word;font-variant-numeric:tabular-nums}
@@ -215,13 +227,13 @@ h2+.fsec,.replace-note+.fsec{margin-top:6px}
 .fsec+.f,.fsec+.row>.f,.fsec+.toggle{margin-top:10px}
 .toggle+.toggle{margin-top:8px}
 form label{font-size:12.5px;color:var(--ink-2);font-weight:600}
-form input,form select,form textarea{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;font-size:16px;width:100%;outline:0;min-height:46px}
-form input::placeholder,form textarea::placeholder{color:#9ca3af}
+form input,form select,form textarea{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--card);font-size:16px;width:100%;outline:0;min-height:46px}
+form input::placeholder,form textarea::placeholder{color:var(--faint)}
 form input:focus,form select:focus,form textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
 form textarea{min-height:72px;resize:vertical}
 .toggle{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:12px;min-height:48px}
 .toggle b{font-weight:600;font-size:15px}
-.switch{width:48px;height:28px;border-radius:99px;background:#d1d5db;position:relative;transition:.2s;flex:0 0 auto}
+.switch{width:48px;height:28px;border-radius:99px;background:var(--line-strong);position:relative;transition:.2s;flex:0 0 auto}
 .switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .switch.on{background:var(--brand)}
 .switch.on::after{transform:translateX(-20px)}
@@ -236,7 +248,7 @@ form textarea{min-height:72px;resize:vertical}
 .b-row{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:14px;align-items:center;color:var(--ink-2)}
 .b-row b{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;font-size:14px}
 .b-row i,.b-row .b-track{grid-column:1/-1;display:block;height:4px;border-radius:99px;background:var(--line-soft);overflow:hidden}
-.b-row .b-track i{grid-column:auto;background:var(--brand);opacity:.6;height:100%}
+.b-row .b-track i{grid-column:auto;background:var(--brand);height:100%}
 .b-head{display:flex;align-items:baseline;justify-content:space-between;padding:20px 20px 0}
 .b-head h3{margin:0;font-size:15px;font-weight:700;color:var(--ink)}
 .card.exp{padding-inline-start:14px}
@@ -262,16 +274,17 @@ button.pill::before{content:"";position:absolute;inset:-5px}
 .alert-line.off .pill.status{opacity:.8}
 .pill.next{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:4px;font-weight:600;overflow:hidden}
 .pill.next .h{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;direction:ltr;unicode-bidi:isolate;text-align:right}
-.pill.due-bad{color:#fecaca}.pill.due-warn{color:#fde68a}.pill.due-ok{color:#a7f3d0}
+/* header stays teal + white: urgency lives only in the red "to cancel" pill; a due ≤3d pill just gets heavier */
+.pill.due-bad{color:#fff;font-weight:700;background:rgba(255,255,255,.2)}.pill.due-warn,.pill.due-ok{color:#fff}
 .tabbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 16px;padding-top:calc(8px + env(safe-area-inset-top))}
-.tabs{display:flex;gap:4px;background:#e6e9ee;border-radius:12px;padding:3px}
-.tabs button{flex:1;min-height:44px;padding:0 2px;border-radius:10px;color:#4b5563;font-weight:500;font-size:14px;white-space:nowrap}
-.tabs button.on{background:#fff;color:var(--brand);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.05),0 2px 6px rgba(16,24,40,.08)}
+.tabs{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:3px}
+.tabs button{flex:1;min-height:44px;padding:0 2px;border-radius:10px;color:var(--ink-3);font-weight:500;font-size:14px;white-space:nowrap}
+.tabs button.on{background:var(--card);color:var(--brand);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.05),0 2px 6px rgba(16,24,40,.08)}
 
-.toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 .toast.err{background:var(--bad)}
-.loading{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#5eead4,transparent);background-size:200% 100%;animation:ld 1s linear infinite;z-index:70;display:none}
+.loading{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--brand),transparent);background-size:200% 100%;animation:ld 1s linear infinite;z-index:70;display:none}
 .loading.on{display:block}
 @keyframes ld{to{background-position:-200% 0}}
 .hint{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
@@ -390,11 +403,12 @@ const set = (k,v) => { try { localStorage.setItem(k, v); } catch {} };
 const API = () => get(LS.api) || DEFAULT_API_URL;
 const TOKEN = () => get(LS.token);
 
+// platform colors are no longer painted in the UI (badges/chips are neutral); kept only as reference data
 const PLATFORM_COLORS = { 'Booking':'#003580','Agoda':'#c62828','Expedia':'#c99a06','Hotels.com':'#b71c1c','Trip.com':'#287dfa','Airbnb':'#ff5a5f','ישירות מול המלון':'#0f766e','אחר':'#64748b' };
 const CURRENCIES = ['ILS','USD','EUR','THB','GBP','JPY','VND','IDR','MYR','SGD','AED','TRY','CHF','AUD','INR','LKR','PHP','KRW','CNY','TWD','HKD','MXN','BRL','ZAR','CZK','HUF','PLN','SEK','NOK','DKK'];
 const SYM = { ILS:'₪', USD:'$', EUR:'€', THB:'฿', GBP:'£', JPY:'¥' };
 const USERS = ['צחי','שירן']; // יוזרים קבועים לבחירה מהירה (אפשר להקליד גם אחר)
-const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','🟢 ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם'],['paySoon','💳 חיוב ב-14 יום הקרובים'],['toCancel','❌ לביטול']];
+const MISC = [['breakfast','☕ עם ארוחת בוקר'],['cancelOpen','✓ ביטול חינם פתוח'],['cancelSoon','⏳ ביטול נגמר בקרוב'],['noCancel','🔒 בלי ביטול'],['unpaid','💳 לא שולם'],['paySoon','💳 חיוב ב-14 יום הקרובים'],['toCancel','❌ לביטול']];
 const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
@@ -466,10 +480,11 @@ async function loadHistory() {
 function cancelInfo(b) {
   if (!b.freeCancelUntil) return { cls:'', txt:'🔒 בלי ביטול חינם', kind:'none' };
   const d = daysUntil(b.freeCancelUntil);
-  if (d < 0) return { cls:'bad', txt:`🔒 ביטול נגמר ${fmtD(b.freeCancelUntil,true)}`, kind:'past' };
-  if (d === 0) return { cls:'bad', txt:'🔴 ביטול חינם נגמר היום!', kind:'soon' };
-  if (d <= 14) return { cls:'warn', txt:`⏳ ביטול חינם עוד ${d} ימים (${fmtD(b.freeCancelUntil,true)})`, kind:'soon' };
-  return { cls:'ok', txt:`🟢 ביטול חינם עד ${fmtD(b.freeCancelUntil,true)}`, kind:'open' };
+  // color = urgency only: ≤3 days red, ≤14 amber, far away / already over = neutral
+  if (d < 0) return { cls:'', txt:`🔒 ביטול נגמר ${fmtD(b.freeCancelUntil,true)}`, kind:'past' };
+  if (d === 0) return { cls:'bad', txt:'⏳ ביטול חינם נגמר היום!', kind:'soon' };
+  if (d <= 14) return { cls:d<=3?'bad':'warn', txt:`⏳ ביטול חינם עוד ${d} ימים (${fmtD(b.freeCancelUntil,true)})`, kind:'soon' };
+  return { cls:'', txt:`✓ ביטול חינם עד ${fmtD(b.freeCancelUntil,true)}`, kind:'open' };
 }
 
 function filtered() {
@@ -514,7 +529,7 @@ function render() {
   $('#sExcl').hidden = !S.excluded; $('#sExcl').textContent = S.excluded ? ` · ${S.excluded} חלופות לא נספרות` : '';
   const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
   const parts = [['מלונות (שנסגר)', Number(B0.hotelsIls)||0], ['תוספות במלון', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
-  const PS = paidSplit(); $('#paidLine').hidden = !(PS.paid||PS.left); $('#paidLine').innerHTML = `<span>✅ שולם <b>${fmtN(PS.paid)} ₪</b></span><span class="sep">·</span><span>⏳ נשאר לשלם <b>${fmtN(PS.left)} ₪</b></span>`;
+  const PS = paidSplit(); $('#paidLine').hidden = !(PS.paid||PS.left); $('#paidLine').innerHTML = `<span>✓ שולם <b>${fmtN(PS.paid)} ₪</b></span><span class="sep">·</span><span>⏳ נשאר לשלם <b>${fmtN(PS.left)} ₪</b></span>`;
   $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
   $('#sCount').textContent = Math.max(0,(Number(S.count)||0)-(Number(S.excluded)||0));
   const pct = Math.min(100, Math.round(100*S.nights/target)); const bar=$('#bar'); bar.style.width=pct+'%'; bar.classList.toggle('over', S.nights>target);
@@ -536,7 +551,7 @@ function render() {
   const nAct = activeFilterCount();
   row.append(el('button',{type:'button', class:'chip filter'+(nAct?' on':''), onclick:openFilters}, 'סינון', nAct ? el('span',{class:'cnt'}, nAct) : null, el('span',{class:'x'},'▾')));
   const chipX = (off, ...label) => el('button',{type:'button', class:'chip on', onclick:()=>{off();render();}}, ...label, el('span',{class:'x'},'✕'));
-  if (f.platform) row.append(chipX(()=>f.platform='', el('i',{class:'dot',style:`background:${pc(f.platform)}`}), f.platform));
+  if (f.platform) row.append(chipX(()=>f.platform='', f.platform));
   if (f.user) row.append(chipX(()=>f.user='', '👤 '+f.user));
   if (f.dest) row.append(chipX(()=>f.dest='', '📍 '+f.dest));
   for (const k of f.misc) if (!QUICK.includes(k)) row.append(chipX(()=>f.misc.delete(k), MISC_LABEL[k]));
@@ -583,7 +598,7 @@ function openFilters() {
   const sync = () => { syncs.forEach(s=>s()); const c = filtered().length; showBtn.textContent = c===1 ? 'הצג הזמנה אחת' : `הצג ${c} הזמנות`; };
   const box = el('div',{},
     el('h2',{}, 'סינון ומיון'),
-    platforms.length>=2 ? group('פלטפורמה', platforms.map(p => chip([el('i',{class:'dot',style:`background:${pc(p)}`}), p], ()=>f.platform===p, ()=>f.platform = f.platform===p?'':p))) : null,
+    platforms.length>=2 ? group('פלטפורמה', platforms.map(p => chip(p,()=>f.platform===p, ()=>f.platform = f.platform===p?'':p))) : null,
     users.length>=2 ? group('יוזר', users.map(u => chip('👤 '+u, ()=>f.user===u, ()=>f.user = f.user===u?'':u))) : null,
     dests.length>=2 ? group('יעד', dests.map(d => chip('📍 '+d, ()=>f.dest===d, ()=>f.dest = f.dest===d?'':d))) : null,
     group('עוד', MISC.map(([k,l]) => chip(l, ()=>f.misc.has(k), ()=>toggleMisc(k)))),
@@ -611,7 +626,7 @@ function altGroup(members) {
   const label = x => sameName ? (x.platform||'?') : (x.hotel||'').split(' ').slice(0,2).join(' ');
   const price = x => (x.priceIls!==''&&x.priceIls!=null) ? fmtN((Number(x.priceIls)||0)+(Number(x.extraIls)||0))+' ₪' : money(x.price,x.currency);
   const diff = members.length===2 ? Math.abs(((Number(members[0].priceIls)||0)+(Number(members[0].extraIls)||0))-((Number(members[1].priceIls)||0)+(Number(members[1].extraIls)||0))) : 0;
-  const box = el('div',{class:'alt-group', style:`--gc:${A0.color||'#ffd8a8'}`},
+  const box = el('div',{class:'alt-group'}, // tint comes from CSS (--tint-alt); the server's per-group A0.color is ignored on purpose
     el('div',{class:'ag-head'},
       el('span',{}, `🔀 ${members.length} אפשרויות לאותם תאריכים`+(diff?` · הפרש ${fmtN(diff)} ₪`:'')),
       chosen ? el('span',{class:'ag-status '+(members.some(toCancel)?'bad':'ok')}, members.some(toCancel)?'❌ '+cancelBy(members.find(toCancel)):'✓ בחרת') : el('span',{class:'ag-status pending'}, 'עוד לא בחרת · נספר הזול')),
@@ -646,10 +661,11 @@ function priceBlock(b) {
 function card(b, opt={}) {
   const ci = cancelInfo(b);
   const g = b.groupInfo; const A = opt.inGroup ? null : b.altInfo; const ex = isExcluded(b);
-  const tint = opt.inGroup ? '' : ((A&&A.color) || (g&&g.color) || '');
-  const c = el('div',{class:'card'+(tint?' grouped':'')+(ex?' excluded':'')+(A?' alt':''), style:`--pc:${pc(b.platform)}`+(tint?`;--gc:${tint}`:''), onclick:()=>openDetail(b)},
+  // grouped = part of a parallel-rooms or alternatives group; the tint is per kind (CSS), not the server's per-group color
+  const tint = !opt.inGroup && !!(A || g);
+  const c = el('div',{class:'card'+(tint?' grouped':'')+(ex?' excluded':'')+(A?' alt':''), onclick:()=>openDetail(b)},
     g ? el('div',{class:'group-badge'}, `🛏 חדר ${g.idx} מתוך ${g.size} במקביל`) : null,
-    toCancel(b) && !opt.inGroup ? el('div',{class:'alt-badge bad'}, '❌ ' + cancelBy(b) + ' · בחרת ב-' + (b.altInfo.chosenName||'')) : (b.backup && !opt.inGroup) ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✔ נספר · חלופה: ':'⚠️ לא נספר (יקר יותר) · חלופה: ')+(A.others||A.hotels.filter(h=>h!==b.hotel)).join(', ')) : null,
+    toCancel(b) && !opt.inGroup ? el('div',{class:'alt-badge bad'}, '❌ ' + cancelBy(b) + ' · בחרת ב-' + (b.altInfo.chosenName||'')) : (b.backup && !opt.inGroup) ? el('div',{class:'alt-badge off'}, '🔁 חלופה · לא נספרת בסכומים') : A ? el('div',{class:'alt-badge '+(A.primary?'on':'off')}, (A.primary?'✓ נספר · חלופה: ':'לא נספר (יקר יותר) · חלופה: ')+(A.others||A.hotels.filter(h=>h!==b.hotel)).join(', ')) : null,
     el('div',{class:'c-head'},
       el('div',{}, el('div',{class:'c-title'}, b.hotel||'—'), el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')+(b.roomType?' · '+b.roomType:''))),
       el('span',{class:'badge'}, b.platform||'?')),
@@ -657,9 +673,9 @@ function card(b, opt={}) {
     el('div',{class:'c-foot'},
       priceBlock(b),
       el('div',{class:'tags'},
-        el('span',{class:'tag '+(b.breakfast?'ok':'')}, b.breakfast?'☕ ארוחת בוקר':'🚫 בלי א.בוקר'),
+        el('span',{class:'tag'}, b.breakfast?'☕ ארוחת בוקר':'בלי א.בוקר'),
         el('span',{class:'tag '+ci.cls}, ci.txt + ((state.reminders&&state.reminders.active&&(ci.kind==='open'||ci.kind==='soon'))?' 🔔':'')),
-        b.paid ? el('span',{class:'tag info'},'💳 שולם') : b.paymentDate ? el('span',{class:'tag '+(daysUntil(b.paymentDate)<=7&&daysUntil(b.paymentDate)>=0?'warn':daysUntil(b.paymentDate)<0?'bad':'')}, '💳 חיוב '+fmtD(b.paymentDate,true)) : null,
+        b.paid ? el('span',{class:'tag'},'💳 שולם') : b.paymentDate ? el('span',{class:'tag '+(daysUntil(b.paymentDate)<0?'bad':daysUntil(b.paymentDate)<=14?'warn':'')}, '💳 חיוב '+fmtD(b.paymentDate,true)) : null,
         b.account ? el('span',{class:'tag'}, '👤 '+b.account) : null))
   );
   return c;
@@ -668,10 +684,9 @@ function card(b, opt={}) {
 function renderHistory() {
   const h=$('#hist'); h.innerHTML='';
   if (!state.history.length) { h.append(el('div',{class:'empty'}, el('b',{},'🕓'), 'עוד אין היסטוריה.')); return; }
-  const cls = a => a.includes('נמחק')?'bad':a.includes('הוחלף')?'warn':a.includes('נוסף')?'ok':a.includes('שוחזר')?'info':'';
-  state.history.forEach(x => {
+    state.history.forEach(x => {
     h.append(el('div',{class:'h-item'},
-      el('div',{class:'h-top'}, el('span',{class:'tag '+cls(x.action)}, x.action), el('time',{}, (x.ts||'').replace('T',' ').slice(0,16)+(x.by?' · '+x.by:''))),
+      el('div',{class:'h-top'}, el('span',{class:'tag'}, x.action), el('time',{}, (x.ts||'').replace('T',' ').slice(0,16)+(x.by?' · '+x.by:''))),
       el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · ${fmtD(x.checkIn)}←${fmtD(x.checkOut)} · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}`),
       x.note ? el('div',{class:'h-note'}, x.note) : null
     ));
@@ -684,7 +699,7 @@ function renderArchive() {
   state.archive.forEach(x => {
     const active = state.bookings.some(b=>String(b.id)===String(x.id));
     h.append(el('div',{class:'h-item', style:''},
-      el('div',{class:'h-top'}, el('span',{class:'tag '+(x.archiveAction==='הוחלף'?'warn':x.archiveAction==='בוטל'?'info':'bad')}, x.archiveAction||'בארכיון'), el('time',{}, (x.archivedAt||'').replace('T',' ').slice(0,16)+(x.archivedBy?' · '+x.archivedBy:''))),
+      el('div',{class:'h-top'}, el('span',{class:'tag'}, x.archiveAction||'בארכיון'), el('time',{}, (x.archivedAt||'').replace('T',' ').slice(0,16)+(x.archivedBy?' · '+x.archivedBy:''))),
       el('div',{}, el('b',{}, x.hotel||'—'), ` · ${x.platform||''} · 📍${x.destination||''}`),
       el('div',{class:'h-note'}, `${fmtD(x.checkIn,true)} ← ${fmtD(x.checkOut,true)} · ${x.nights||'?'} לילות · ${x.priceIls!==''&&x.priceIls!=null?fmtN(x.priceIls)+' ₪':money(x.price,x.currency)}${x.breakfast?' · ☕':''}${x.confirmation?' · #'+x.confirmation:''}`),
       x.archiveNote ? el('div',{class:'h-note'}, x.archiveNote) : null,
@@ -704,8 +719,8 @@ function renderBudget() {
   const hero = el('div',{class:'bcard main'},
     el('div',{class:'b-total'}, el('b',{}, fmtN(B.totalIls)+' ₪'), el('span',{}, target?`מתוך תקציב ${fmtN(target)} ₪`:'💰 סה״כ הוצאות הטיול · מלונות + הכל')),
     target ? el('div',{class:'bar light'}, el('i',{class:B.totalIls>target?'over':'', style:`width:${Math.min(100,Math.round(100*B.totalIls/target))}%`})) : null,
-    target ? el('div',{class:'hint', style:'margin-top:6px;color:'+(B.totalIls>target?'var(--bad)':'var(--ok)')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : null,
-    (()=>{ const PS=paidSplit(); return (PS.paid||PS.left) ? el('div',{class:'hint', style:'margin-top:6px'}, `✅ שולם ${fmtN(PS.paid)} ₪ · ⏳ נשאר לשלם ${fmtN(PS.left)} ₪ (מלונות והוצאות שלא שולמו + תוספות במלון)`) : null; })(),
+    target ? el('div',{class:'hint', style:'margin-top:6px'+(B.totalIls>target?';color:var(--bad);font-weight:600':'')}, B.totalIls>target?`חריגה של ${fmtN(B.totalIls-target)} ₪`:`נשארו ${fmtN(target-B.totalIls)} ₪`) : null,
+    (()=>{ const PS=paidSplit(); return (PS.paid||PS.left) ? el('div',{class:'hint', style:'margin-top:6px'}, `✓ שולם ${fmtN(PS.paid)} ₪ · ⏳ נשאר לשלם ${fmtN(PS.left)} ₪ (מלונות והוצאות שלא שולמו + תוספות במלון)`) : null; })(),
     el('div',{class:'b-rows'}, ...rows.map(([i,l,v])=>el('div',{class:'b-row'}, el('span',{}, i+' '+l), el('b',{}, fmtN(v)+' ₪'), el('span',{class:'b-track'}, el('i',{style:`width:${B.totalIls?Math.round(100*v/B.totalIls):0}%`})))))
   );
   box.append(hero);
@@ -715,7 +730,7 @@ function renderBudget() {
   const list = el('div',{class:'list'});
   exps.forEach(e => list.append(el('div',{class:'card exp', onclick:()=>openExpenseDetail(e)},
     el('div',{class:'c-head'}, el('div',{}, el('div',{class:'c-title'}, catIcon(e.category)+' '+(e.title||e.category)), el('div',{class:'c-sub'}, [e.route, e.date?fmtD(e.date,true)+(e.date2?' ← '+fmtD(e.date2,true):''):'', e.account?'👤 '+e.account:''].filter(Boolean).join(' · '))),
-      el('div',{class:'price'}, e.priceIls!==''&&e.priceIls!=null?fmtN(e.priceIls)+' ₪':money(e.price,e.currency), (e.currency&&e.currency!=='ILS')?el('small',{},money(e.price,e.currency)):null, el('small',{}, el('span',{class:'tag '+(e.paid===false?'warn':'ok')}, e.paid===false?'⏳ לא שולם':'✅ שולם')))))));
+      el('div',{class:'price'}, e.priceIls!==''&&e.priceIls!=null?fmtN(e.priceIls)+' ₪':money(e.price,e.currency), (e.currency&&e.currency!=='ILS')?el('small',{},money(e.price,e.currency)):null, el('small',{}, el('span',{class:'tag '+(e.paid===false?'warn':'')}, e.paid===false?'⏳ לא שולם':'✓ שולם')))))));
   box.append(list);
 }
 function openExpenseDetail(e) {
@@ -727,7 +742,7 @@ function openExpenseDetail(e) {
       e.date2 ? kv('תאריך חזור', fmtD(e.date2,true)) : null, e.route ? kv('מסלול', e.route) : null,
       kv('מחיר', money(e.price,e.currency)), kv('בשקלים', e.priceIls!==''?fmtN(e.priceIls)+' ₪':'—'),
       kv('יוזר', e.account), kv('מספר הזמנה', e.confirmation),
-      el('div',{}, el('label',{},'שולם'), el('button',{class:'restore', style:'padding:0;min-height:32px', onclick:async ev=>{ ev.stopPropagation(); try{ await api('updateExpense',{id:e.id, expense:{paid:e.paid===false}},'POST'); toast(e.paid===false?'סומן כשולם ✓':'סומן כלא שולם'); closeSheet(); await load(true); renderBudget(); }catch(err){toast(err.message,true);} }}, e.paid===false?'⏳ לא שולם · סמן כשולם':'✅ שולם · סמן כלא שולם')),
+      el('div',{}, el('label',{},'שולם'), el('button',{class:'restore', style:'padding:0;min-height:32px', onclick:async ev=>{ ev.stopPropagation(); try{ await api('updateExpense',{id:e.id, expense:{paid:e.paid===false}},'POST'); toast(e.paid===false?'סומן כשולם ✓':'סומן כלא שולם'); closeSheet(); await load(true); renderBudget(); }catch(err){toast(err.message,true);} }}, e.paid===false?'⏳ לא שולם · סמן כשולם':'✓ שולם · סמן כלא שולם')),
       e.notes ? kv('הערות', e.notes, true) : null,
       kv('נוסף', (e.createdAt||'').replace('T',' ').slice(0,16)+(e.source?' · '+e.source:''), true)),
     el('div',{class:'actions'},
@@ -854,9 +869,9 @@ function openDetail(b) {
   const kv = (l,v,full) => el('div',{class:full?'full':''}, el('label',{},l), el('span',{}, v==null||v===''?'—':v));
   openSheet(el('div',{},
     toCancel(b) ? el('div',{class:'cancel-banner'}, el('b',{}, '❌ מיועד לביטול'), el('span',{}, `בחרת ב-${b.altInfo.chosenName}. ` + (b.freeCancelUntil ? `ביטול חינם עד ${fmtD(b.freeCancelUntil,true)}.` : 'אין ביטול חינם.')), el('button',{type:'button', class:'btn danger-solid', onclick:()=>cancelBooking(b)}, '✓ ביטלתי באתר · להעביר לארכיון')) : null,
-    el('div',{class:'sheet-head'}, el('h2',{}, b.hotel), el('span',{class:'badge', style:`--pc:${pc(b.platform)}`}, b.platform)),
+    el('div',{class:'sheet-head'}, el('h2',{}, b.hotel), el('span',{class:'badge', }, b.platform)),
     el('div',{class:'c-sub'}, '📍 '+(b.destination||'—')),
-    b.groupInfo ? el('div',{class:'group-badge', style:`--gc:${b.groupInfo.color};margin-top:6px`}, `🛏 חדר ${b.groupInfo.idx} מתוך ${b.groupInfo.size} במקביל (קבוצה ${b.groupInfo.n})`) : null,
+    b.groupInfo ? el('div',{class:'group-badge', style:'margin-top:6px'}, `🛏 חדר ${b.groupInfo.idx} מתוך ${b.groupInfo.size} במקביל (קבוצה ${b.groupInfo.n})`) : null,
     el('div',{class:'kv'},
       kv('צ׳ק-אין', fmtD(b.checkIn,true)), kv('צ׳ק-אאוט', fmtD(b.checkOut,true)),
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),
@@ -946,7 +961,7 @@ function openSettings() {
     inp('טוקן API', LS.token, 'מ-setup() בגיליון','password'),
     inp('יעד לילות לטיול', LS.target, '21','number'),
     inp('תקציב יעד (₪) — לא חובה, רק אם רוצים פס התקדמות', LS.budget, 'אפשר להשאיר ריק','number'),
-    el('div',{class:'f'}, el('label',{},'🔔 תזכורות טלגרם לפני סיום ביטול חינם'), el('div',{class:'hint', style:'background:#f8fafc;border-radius:12px;padding:10px 12px;line-height:1.5'},
+    el('div',{class:'f'}, el('label',{},'🔔 תזכורות טלגרם לפני סיום ביטול חינם'), el('div',{class:'hint', style:'background:var(--fill-soft);border-radius:12px;padding:10px 12px;line-height:1.5'},
       (state.reminders&&state.reminders.active) ? `פעילות ✓ נשלחות ${state.reminders.days.join('/')} ימים לפני, בשעה 09:00.` :
       'לא מוגדרות. בעורך Apps Script של הגיליון: ⚙ הגדרות הפרויקט → Script properties → להוסיף TELEGRAM_BOT_TOKEN ו-TELEGRAM_CHAT_ID (431692318), ואז להריץ installTriggers() ו-sendTestReminder(). ברירת מחדל: 14, 7, 3, 1, 0 ימים לפני (REMINDER_DAYS).')),
     el('div',{class:'hint'}, 'הנתונים נשמרים במכשיר הזה בלבד.', SHEET_URL ? el('a',{href:SHEET_URL,target:'_blank',style:'margin-inline-start:6px'},'פתח את הגיליון ↗') : null),
