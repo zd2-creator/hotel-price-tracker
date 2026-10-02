@@ -890,6 +890,7 @@ function openDetail(b) {
       el('button',{class:'btn primary', onclick:()=>openForm(b)}, '✏️ עריכה'),
       el('button',{class:'btn', onclick:()=>openForm({...b, id:'', confirmation:'', createdAt:''}, b)}, '🔁 הזמנתי מחדש'),
       (b.altInfo && b.altInfo.n && !b.altInfo.chosen) ? el('button',{class:'btn primary full', onclick:()=>chooseAlt(b)}, '✓ זה המלון שבחרתי (ייספר בסכומים)') : null,
+      (b.groupInfo && b.parallel) ? el('button',{class:'btn full', onclick:async()=>{ try{ await api('update',{id:b.id, booking:{parallel:false}},'POST'); toast('✓ הפך לכפילות · נספרת רק אפשרות אחת'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '🔀 זו בעצם כפילות, לא חדר נוסף') : null,
       el('button',{class:'btn full', onclick:async()=>{ try{ await api('update',{id:b.id, booking:{backup:!b.backup}},'POST'); toast(b.backup?'חזר להיספר ✓':'סומן כחלופה (לא נספר)'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, b.backup?'✔ להחזיר לספירה (זו לא חלופה)':'🔁 סמן כחלופה (גיבוי, לא נספר)')),
     el('div',{class:'actions danger-zone'},
       el('button',{class:'btn quiet', onclick:async()=>{ if(!confirm('לסמן את "'+b.hotel+'" ('+b.platform+') כהזמנה שביטלת? היא תעבור לארכיון.')) return; try{ await api('cancel',{id:b.id},'POST'); toast('סומן כבוטל, עבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }}, '❌ ביטלתי את ההזמנה הזו'),
