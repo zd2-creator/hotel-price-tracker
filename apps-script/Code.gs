@@ -109,6 +109,8 @@ function writeHeader_(sh, cols) {
   var lastCol = sh.getLastColumn();
   var existing = (sh.getLastRow() >= 1 && lastCol > 0) ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
   while (existing.length && existing[existing.length - 1] === '') existing.pop();
+  var RENAMES = { 'חדרים במקביל': 'כפילויות / חדרים במקביל' };
+  Object.keys(RENAMES).forEach(function (oldH) { var i = existing.indexOf(oldH), nw = RENAMES[oldH]; if (i >= 0 && existing.indexOf(nw) < 0 && headers.indexOf(nw) >= 0) { sh.getRange(1, i + 1).setValue(nw); existing[i] = nw; } });
   var missing = headers.filter(function (h) { return existing.indexOf(h) < 0; });
   if (existing.length === 0) { sh.getRange(1, 1, 1, headers.length).setValues([headers]); existing = headers.slice(); }
   else if (missing.length) { sh.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]); existing = existing.concat(missing); }
@@ -433,7 +435,10 @@ function syncGroups_() {
   if (!all.length) return;
   var groups = computeGroups_(all);
   var header = headerOf_(sh, COLS);
-  var gi = header.indexOf('חדרים במקביל');
+  var gi = header.indexOf('כפילויות / חדרים במקביל');
+  // עמודה ישנה בשם 'חדרים במקביל' (לפני שינוי השם): מנקים את התוויות שנשארו בה ומסמנים שאפשר למחוק
+  var oldGi = header.indexOf('חדרים במקביל');
+  if (oldGi >= 0 && sh.getLastRow() > 1) { sh.getRange(2, oldGi + 1, sh.getLastRow() - 1, 1).clearContent(); sh.getRange(1, oldGi + 1).setValue('(עמודה ישנה, אפשר למחוק)'); HEADER_CACHE_ = {}; }
   var last = sh.getLastRow();
   if (last < 2) return;
   var bg = [], labels = [];
