@@ -67,6 +67,7 @@ b,strong{font-weight:700}
 .grand .g-label{grid-column:1;grid-row:1;font-size:13px;font-weight:600;opacity:.95}
 .grand b{grid-column:2;grid-row:1/3;text-align:left;font-size:24px;font-weight:800;letter-spacing:-.4px;line-height:1.1;white-space:nowrap}
 .grand .g-sub{grid-column:1;grid-row:2;white-space:normal;line-height:1.35;font-size:11.5px;opacity:.74;margin-top:2px}
+.fx-line{margin-top:6px;padding:0 4px;font-size:11.5px;color:rgba(255,255,255,.72);font-variant-numeric:tabular-nums;line-height:1.4}
 .paid-line{margin-top:2px;padding:7px 14px;border-radius:0 0 14px 14px;background:rgba(255,255,255,.09);font-size:12.5px;color:rgba(255,255,255,.8);display:flex;gap:4px 8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .paid-line b{font-weight:700;color:#fff}
 .paid-line .sep{color:rgba(255,255,255,.32)}
@@ -344,6 +345,7 @@ button.pill::before{content:"";position:absolute;inset:-5px}
     </div>
     <div class="grand" id="grandRow" hidden><span class="g-label">💰 סה״כ הוצאות הטיול</span><b id="sGrand">–</b><span class="g-sub" id="sGrandSub"></span></div>
     <div class="paid-line" id="paidLine" hidden></div>
+    <div class="fx-line" id="fxLine" hidden></div>
     <div class="alert-line" id="alertLine" hidden></div>
   </header>
   <div class="tabbar">
@@ -413,7 +415,7 @@ const MISC_LABEL = Object.fromEntries(MISC);
 const QUICK = ['cancelSoon','unpaid']; // מתגים מהירים שתמיד מוצגים בשורת הצ'יפים
 const SORTS = [['checkIn','תאריך הגעה'],['cancel','מועד ביטול'],['priceDesc','מחיר (יורד)'],['priceAsc','מחיר (עולה)'],['hotel','שם מלון']];
 
-let state = { bookings:[], summary:null, reminders:null, expenses:[], budget:null, history:[], archive:[], altView:{}, filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
+let state = { bookings:[], summary:null, reminders:null, fx:null, expenses:[], budget:null, history:[], archive:[], altView:{}, filters:{ platform:'', dest:'', user:'', misc:new Set() }, q:'', sort:'checkIn', view:'list' };
 
 /* ====== עזרים ====== */
 const $ = s => document.querySelector(s);
@@ -432,6 +434,8 @@ const cancelBy = (b, withYear=true) => b.freeCancelUntil ? `לבטל עד ${fmtD
 async function cancelBooking(b) { if(!confirm('לסמן את "'+b.hotel+'" ('+b.platform+') כהזמנה שביטלת? היא תעבור לארכיון.')) return; try{ await api('cancel',{id:b.id},'POST'); toast('✓ סומן כבוטל, עבר לארכיון'); closeSheet(); await load(true);}catch(e){toast(e.message,true);} }
 const isExcluded = b => !!b.backup || !!(b.altInfo && !b.altInfo.primary);
 const paidSplit = () => { let paid=0, left=0; state.bookings.forEach(b=>{ if (isExcluded(b)) return; const v=Number(b.priceIls)||0; if (b.paid) paid+=v; else left+=v; left+=Number(b.extraIls)||0; }); (state.expenses||[]).forEach(e=>{ const v=Number(e.priceIls)||0; if (e.paid===false) left+=v; else paid+=v; }); return {paid, left}; };
+const fmtRate = r => { const n=Number(r); return !n ? '' : n>=1 ? n.toFixed(3) : n.toFixed(4); };
+const rateEl = (cur, r) => el('bdi',{dir:'ltr'}, `${SYM[cur]||(cur+' ')}1 = ₪${fmtRate(r)}`);
 const fmtN = n => (n===''||n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:0});
 const money = (n,cur) => (n===''||n==null) ? '—' : `${fmtN(n)} ${SYM[cur]||cur||''}`;
 const pc = p => PLATFORM_COLORS[p] || '#64748b';
@@ -460,9 +464,9 @@ async function api(action, params={}, method='GET') {
 
 async function load(silent=false) {
   try {
-    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; state.reminders=c.reminders||null; state.expenses=c.expenses||[]; state.budget=c.budget||null; render(); } catch{} }
+    const cached = get(LS.cache); if (cached && !state.bookings.length) { try { const c=JSON.parse(cached); state.bookings=c.bookings; state.summary=c.summary; state.reminders=c.reminders||null; state.expenses=c.expenses||[]; state.budget=c.budget||null; state.fx=c.fx||null; render(); } catch{} }
     const d = await api('list');
-    state.bookings = d.bookings; state.summary = d.summary; state.reminders = d.reminders || null; state.expenses = d.expenses || []; state.budget = d.budget || null; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary, reminders:d.reminders, expenses:d.expenses, budget:d.budget}));
+    state.bookings = d.bookings; state.summary = d.summary; state.reminders = d.reminders || null; state.expenses = d.expenses || []; state.budget = d.budget || null; state.fx = d.fx || null; set(LS.cache, JSON.stringify({bookings:d.bookings, summary:d.summary, reminders:d.reminders, expenses:d.expenses, budget:d.budget, fx:d.fx}));
     if (state.view==='budget') renderBudget();
     $('#setupBox').hidden = true;
     render();
@@ -529,6 +533,9 @@ function render() {
   $('#sExcl').hidden = !S.excluded; $('#sExcl').textContent = S.excluded ? ` · ${S.excluded} חלופות לא נספרות` : '';
   const B0 = state.budget || {}; const BT = Number(B0.totalIls)||0; $('#grandRow').hidden = !BT; $('#sGrand').textContent = fmtN(BT)+' ₪';
   const parts = [['מלונות (שנסגר)', Number(B0.hotelsIls)||0], ['תוספות במלון', Number(B0.extrasIls)||0], ...EXP_CATS.map(([c])=>[c, Number((B0.byCategory||{})[c])||0])].filter(x=>x[1]>0);
+  const FXR = (state.fx && state.fx.rates) || {}; const fxKeys = Object.keys(FXR);
+  $('#fxLine').hidden = !fxKeys.length;
+  if (fxKeys.length) { const dt = FXR[fxKeys[0]].date, fl = $('#fxLine'); fl.innerHTML=''; fl.append('💱 שער עדכני'+(dt?` (${fmtD(dt).replace(/^\S+ /,'')})`:'')+': '); fxKeys.forEach((c,i)=>{ if(i) fl.append(' · '); fl.append(rateEl(c, FXR[c].rate)); }); }
   const PS = paidSplit(); $('#paidLine').hidden = !(PS.paid||PS.left); $('#paidLine').innerHTML = `<span>✓ שולם <b>${fmtN(PS.paid)} ₪</b></span><span class="sep">·</span><span>⏳ נשאר לשלם <b>${fmtN(PS.left)} ₪</b></span>`;
   $('#sGrandSub').textContent = parts.length>1 ? parts.map(x=>`${x[0]} ${fmtN(x[1])}`).join(' · ') : 'כולל מלונות וכל ההוצאות';
   $('#sCount').textContent = Math.max(0,(Number(S.count)||0)-(Number(S.excluded)||0));
@@ -765,6 +772,7 @@ function openExpenseForm(e={}) {
     ev.preventDefault();
     const expense = Object.fromEntries(new FormData(form).entries());
     expense.paid = catSel.value==='מזומן' ? true : paid;
+    if (!expense.paid || expense.currency==='ILS') delete expense.priceIls; // לא שולם במטבע זר: לפי שער עדכני
     if (expense.price==='') return toast('חסר מחיר', true);
     const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
     try {
@@ -781,7 +789,7 @@ function openExpenseForm(e={}) {
     flightRow,
     el('div',{class:'fsec'}, 'מחיר'),
     el('div',{class:'row'}, f('מחיר','price','number',{attrs:{step:'0.01',inputmode:'decimal',required:true}}), el('div',{class:'f'}, el('label',{},'מטבע'), curSel)),
-    el('div',{class:'row'}, f('בשקלים (ריק = אוטומטי)','priceIls','number',{attrs:{inputmode:'numeric'}}), f('יוזר','account','text',{attrs:{list:'accounts', value:e.account??get(LS.account)}})),
+    el('div',{class:'row'}, f('בשקלים (ריק = לפי שער)','priceIls','number',{attrs:{inputmode:'numeric'}}), f('יוזר','account','text',{attrs:{list:'accounts', value:e.account??get(LS.account)}})),
     el('div',{class:'fsec'}, 'תשלום'),
     paidRow,
     f('מספר הזמנה / אסמכתא','confirmation','text',{full:true}),
@@ -856,7 +864,7 @@ function buildPrint(o) {
   tbl.append(tb); v.append(tbl);
   const gaps=[]; for (let i=1;i<counted.length;i++){ const g=daysUntil(counted[i].checkIn)-daysUntil(counted[i-1].checkOut); if (g>0) gaps.push(`${g} ${g===1?'לילה':'לילות'} בלי מלון בין ${fmtD(counted[i-1].checkOut,true)} ל-${fmtD(counted[i].checkIn,true)}`); }
   if (gaps.length) v.append(el('div',{class:'p-gaps'}, '⚠️ '+gaps.join(' · ')));
-  v.append(el('div',{class:'p-foot'}, 'מודגש: מחיר סופי במטבע המקומי, מחיר ללילה כולל תוספת, מועד ביטול חינם ומועד תשלום. הסכומים בשקלים לפי שער ההמרה ביום ההזמנה. "במלון" = תשלום בהגעה.'));
+  v.append(el('div',{class:'p-foot'}, 'מודגש: מחיר סופי במטבע המקומי, מחיר ללילה כולל תוספת, מועד ביטול חינם ומועד תשלום. הסכומים בשקלים לפי שער המרה עדכני (מתעדכן יומית); מה ששולם, לפי השער ביום התשלום. "במלון" = תשלום בהגעה.'));
 }
 
 /* ====== Bottom sheet ====== */
@@ -876,6 +884,7 @@ function openDetail(b) {
       kv('צ׳ק-אין', fmtD(b.checkIn,true)), kv('צ׳ק-אאוט', fmtD(b.checkOut,true)),
       kv('לילות', b.nights), kv('סוג החדר', b.roomType),
       kv('מחיר ששולם', money(b.price,b.currency)), kv('בשקלים', b.priceIls!==''?fmtN(b.priceIls)+' ₪':'—'),
+      (b.currency && b.currency!=='ILS') ? kv('שער המרה', [b.rate?rateEl(b.currency,b.rate):'—', (b.rateDate?` · ${fmtD(b.rateDate,true)}`:'') + ' · ' + (b.ilsFixed?'🔒 נעול ידנית':b.paid?'ננעל בתשלום':'מתעדכן לבד עד התשלום')], true) : null,
       kv('מחיר ללילה', (b.priceIls!==''&&b.nights>0)?fmtN(b.priceIls/b.nights)+' ₪':'—', false),
       (Number(b.extraIls)>0&&b.nights>0&&b.priceIls!=='') ? kv('ללילה כולל תוספת', fmtN((Number(b.priceIls)+Number(b.extraIls))/b.nights)+' ₪ (סה״כ '+fmtN(Number(b.priceIls)+Number(b.extraIls))+' ₪)', false) : null,
       kv('ארוחת בוקר', b.breakfast?'כן ☕':'לא'), kv('שולם', b.paid?'כן':(b.paymentDate?'עוד לא':'לא / בתשלום במלון')),
@@ -905,12 +914,24 @@ function openForm(b={}, replacing=null) {
   const platSel = el('select',{name:'platform'}, el('option',{value:''},'בחר…'), ...platforms.map(p=>el('option',{value:p, selected:b.platform===p}, p)));
   if (b.platform && !platforms.includes(b.platform)) platSel.append(el('option',{value:b.platform,selected:true},b.platform));
   const curSel = el('select',{name:'currency'}, ...CURRENCIES.map(c=>el('option',{value:c, selected:(b.currency||'ILS')===c}, c)));
-  let breakfast = !!b.breakfast, paid = !!b.paid, backup = !!b.backup, parallel = !!b.parallel;
+  let breakfast = !!b.breakfast, paid = !!b.paid, backup = !!b.backup, parallel = !!b.parallel, ilsFixed = !!b.ilsFixed;
+  const ilsHint = el('div',{class:'hint'});
+  function updIls() {
+    const foreign = curSel.value !== 'ILS', live = foreign && !ilsFixed && !paid;
+    const inp = form.querySelector('[name=priceIls]'); const wrap = inp.parentElement;
+    if (!wrap.contains(ilsHint)) wrap.append(ilsHint);
+    wrap.hidden = !foreign; lockRow.hidden = !foreign || paid;
+    inp.readOnly = live; inp.style.opacity = live ? '.6' : '1';
+    ilsHint.textContent = live ? 'מתעדכן לבד לפי שער עדכני, עד התשלום' : paid ? 'שולם: הסכום נשאר קבוע. אפשר לתקן לסכום שחויב בפועל.' : 'נעול: הסכום לא ישתנה עם השער';
+  }
+  const lockSw = el('div',{class:'switch'+(ilsFixed?' on':'')});
+  const lockRow = el('div',{class:'toggle', onclick:()=>{ ilsFixed=!ilsFixed; lockSw.classList.toggle('on',ilsFixed); updIls(); }}, el('b',{},'🔒 לנעול את הסכום בשקלים (בלי עדכון שער)'), lockSw);
   const sw = (label, getv, setv) => { const s=el('div',{class:'switch'+(getv()?' on':'')}); const t=el('div',{class:'toggle', onclick:()=>{setv(!getv()); s.classList.toggle('on',getv());}}, el('b',{},label), s); return t; };
   const form = el('form',{onsubmit: async ev => {
     ev.preventDefault();
     const fd = new FormData(form); const booking = Object.fromEntries(fd.entries());
-    booking.breakfast = breakfast; booking.paid = paid; booking.backup = backup; booking.parallel = parallel;
+    booking.breakfast = breakfast; booking.paid = paid; booking.backup = backup; booking.parallel = parallel; booking.ilsFixed = ilsFixed;
+    if (booking.currency==='ILS' || !(ilsFixed || paid)) delete booking.priceIls; // מטבע זר שלא שולם: השרת מחשב לפי שער עדכני
     if (!booking.hotel.trim()) return toast('חסר שם מלון', true);
     if (booking.checkIn && booking.checkOut && booking.checkOut <= booking.checkIn) return toast('צ׳ק-אאוט חייב להיות אחרי צ׳ק-אין', true);
     const btn = form.querySelector('button[type=submit]'); btn.disabled=true;
@@ -933,10 +954,11 @@ function openForm(b={}, replacing=null) {
     sw('☕ כולל ארוחת בוקר', ()=>breakfast, v=>breakfast=v),
     el('div',{class:'fsec'}, 'מחיר'),
     el('div',{class:'row'}, f('מחיר ששולם','price','number',{attrs:{step:'0.01',inputmode:'decimal'}}), el('div',{class:'f'}, el('label',{},'מטבע'), curSel)),
-    f('בשקלים (ריק = חישוב אוטומטי)','priceIls','number',{full:true, attrs:{step:'1',inputmode:'numeric'}}),
+    f('בשקלים','priceIls','number',{full:true, attrs:{step:'1',inputmode:'numeric'}}),
+    lockRow,
     el('div',{class:'row'}, f('תוספת שתשולם במלון (באותו מטבע)','extraPrice','number',{attrs:{step:'0.01',inputmode:'decimal',placeholder:'למשל מיטה נוספת'}}), f('על מה התוספת','extraNote','text',{attrs:{placeholder:'מיטה נוספת / ילד'}})),
     el('div',{class:'fsec'}, 'תשלום'),
-    sw('💳 שולם מראש', ()=>paid, v=>paid=v),
+    sw('💳 שולם מראש', ()=>paid, v=>{paid=v; updIls();}),
     el('div',{class:'row'}, f('מועד חיוב (מתי יורד התשלום)','paymentDate','date'), f('ביטול חינם עד','freeCancelUntil','date')),
     el('div',{class:'fsec'}, 'סטטוס'),
     sw('🔁 חלופה / גיבוי (לא נספר בסכומים ובלילות)', ()=>backup, v=>backup=v),
@@ -951,6 +973,7 @@ function openForm(b={}, replacing=null) {
   const nightsHint = el('div',{class:'hint'}); form.querySelector('[name=checkOut]').parentElement.append(nightsHint);
   const upd = () => { const a=form.checkIn.value,c=form.checkOut.value; const n=a&&c?Math.round((new Date(c)-new Date(a))/864e5):0; nightsHint.textContent = n>0?`${n} לילות`:''; };
   form.checkIn.oninput = form.checkOut.oninput = upd; upd();
+  curSel.onchange = updIls; updIls();
   openSheet(form);
 }
 

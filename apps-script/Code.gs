@@ -37,6 +37,9 @@ var COLS = [
   ['backup', 'חלופה', 'bool'],
   ['parallel', 'חדר נוסף', 'bool'],
   ['chosen', 'נבחר', 'bool'],
+  ['rate', 'שער המרה', 'num'],
+  ['rateDate', 'שער מתאריך', 'date'],
+  ['ilsFixed', 'שקל נעול', 'bool'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['link', 'קישור', 'text'],
   ['notes', 'הערות', 'text'],
@@ -65,6 +68,8 @@ var EXP_COLS = [
   ['priceIls', 'בשקלים', 'num'],
   ['account', 'יוזר', 'text'],
   ['paid', 'שולם', 'bool'],
+  ['rate', 'שער המרה', 'num'],
+  ['rateDate', 'שער מתאריך', 'date'],
   ['confirmation', 'מספר הזמנה', 'text'],
   ['notes', 'הערות', 'text'],
   ['source', 'מקור', 'text'],
@@ -206,18 +211,23 @@ function normalize_(b, existing) {
   if (r.checkIn && r.checkOut) r.nights = nightsBetween_(r.checkIn, r.checkOut);
   else if (r.checkIn && r.nights && !r.checkOut) { var d = new Date(r.checkIn + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + Number(r.nights)); r.checkOut = d.toISOString().slice(0, 10); }
   // המרה לשקל: ידני גובר; אחרת מחשבים כשאין ערך או כשהמחיר/המטבע השתנו
+  // המרה לשקל. מטבע זר שעוד לא שולם (ולא ננעל) → תמיד לפי שער עדכני. שולם/נעול → הסכום נשאר, וידני גובר.
+  var foreign = r.currency !== 'ILS';
+  var live = foreign && !r.ilsFixed && !r.paid;
   var manualIls = b.priceIls !== undefined && b.priceIls !== null && String(b.priceIls) !== '';
   var priceChanged = !existing || String(existing.price) !== String(r.price) || String(existing.currency) !== String(r.currency);
-  if (!manualIls && r.price !== '' && (r.priceIls === '' || priceChanged)) {
-    if (r.currency === 'ILS') r.priceIls = r.price;
-    else { var rate = fxRate_(r.currency); r.priceIls = rate ? Math.round(r.price * rate) : ''; }
+  var fx = foreign ? fxInfo_(r.currency) : null;
+  if (r.price !== '') {
+    if (!foreign) { r.priceIls = r.price; r.rate = ''; r.rateDate = ''; }
+    else if (live) { if (fx) { r.priceIls = Math.round(r.price * fx.rate); r.rate = fx.rate; r.rateDate = fx.date; } }
+    else if (manualIls) { r.rate = Number(r.price) ? Math.round(Number(r.priceIls) / Number(r.price) * 100000) / 100000 : ''; if (!r.rateDate || priceChanged) r.rateDate = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'); }
+    else if (r.priceIls === '' || priceChanged) { if (fx) { r.priceIls = Math.round(r.price * fx.rate); r.rate = fx.rate; r.rateDate = fx.date; } else r.priceIls = ''; }
   }
-  // תוספת שתשולם במלון (למשל מיטה נוספת) — באותו מטבע של ההזמנה
+  // תוספת שתשולם במלון (למשל מיטה נוספת) — באותו מטבע של ההזמנה, משולמת בעתיד ולכן לפי שער עדכני (אלא אם ננעל)
   if (r.extraPrice === '' || r.extraPrice === null) r.extraIls = '';
-  else if (b.extraPrice !== undefined || b.currency !== undefined || r.extraIls === '') {
-    if (r.currency === 'ILS') r.extraIls = r.extraPrice;
-    else { var rate2 = fxRate_(r.currency); r.extraIls = rate2 ? Math.round(r.extraPrice * rate2) : ''; }
-  }
+  else if (!foreign) r.extraIls = r.extraPrice;
+  else if (r.ilsFixed && r.extraIls !== '' && b.extraPrice === undefined) { /* נעול */ }
+  else if (fx) r.extraIls = Math.round(r.extraPrice * fx.rate);
   return r;
 }
 
@@ -242,14 +252,19 @@ function normalizeExpense_(b, existing) {
   else if (cat.indexOf('attr') >= 0 || cat.indexOf('אטרק') >= 0 || cat.indexOf('טיול') >= 0 || cat.indexOf('tour') >= 0) r.category = 'אטרקציות';
   else if (EXP_CATEGORIES.indexOf(r.category) < 0) r.category = r.category ? 'אחר' : 'אחר';
   r.currency = String(r.currency || 'ILS').toUpperCase().replace('₪', 'ILS').replace('NIS', 'ILS').replace('$', 'USD').replace('€', 'EUR').replace('£', 'GBP').replace('฿', 'THB').trim();
-  var manualIls = b.priceIls !== undefined && b.priceIls !== null && String(b.priceIls) !== '';
-  var priceChanged = !existing || String(existing.price) !== String(r.price) || String(existing.currency) !== String(r.currency);
-  if (!manualIls && r.price !== '' && (r.priceIls === '' || priceChanged)) {
-    if (r.currency === 'ILS') r.priceIls = r.price;
-    else { var rate3 = fxRate_(r.currency); r.priceIls = rate3 ? Math.round(r.price * rate3) : ''; }
-  }
   if (r.category === 'מזומן') r.paid = true; // משיכת מזומן = כסף שכבר יצא
   else if (!existing && b.paid === undefined) r.paid = true; // ברירת מחדל: הוצאה שנרשמת כבר שולמה
+  // המרה לשקל: הוצאה במטבע זר שעוד לא שולמה → לפי שער עדכני; ששולמה → הסכום נשאר (ידני גובר)
+  var foreignE = r.currency !== 'ILS', liveE = foreignE && r.paid === false;
+  var manualIls = b.priceIls !== undefined && b.priceIls !== null && String(b.priceIls) !== '';
+  var priceChanged = !existing || String(existing.price) !== String(r.price) || String(existing.currency) !== String(r.currency);
+  var fxE = foreignE ? fxInfo_(r.currency) : null;
+  if (r.price !== '') {
+    if (!foreignE) { r.priceIls = r.price; r.rate = ''; r.rateDate = ''; }
+    else if (liveE) { if (fxE) { r.priceIls = Math.round(r.price * fxE.rate); r.rate = fxE.rate; r.rateDate = fxE.date; } }
+    else if (manualIls) { r.rate = Number(r.price) ? Math.round(Number(r.priceIls) / Number(r.price) * 100000) / 100000 : ''; }
+    else if (r.priceIls === '' || priceChanged) { if (fxE) { r.priceIls = Math.round(r.price * fxE.rate); r.rate = fxE.rate; r.rateDate = fxE.date; } else r.priceIls = ''; }
+  }
   if (!r.title) r.title = r.category === 'טיסה' ? ('טיסה ' + (r.route || '')).trim() : r.category === 'מזומן' ? 'משיכת מזומן' : r.category;
   return r;
 }
@@ -309,19 +324,75 @@ function logExpenseHistory_(action, by, note, e) {
 }
 
 var FX_CACHE_ = {};
-function fxRate_(cur) {
-  if (!cur || cur === 'ILS') return 1;
+/** שער המרה עדכני ל-ILS: {rate, date}. מטמון 6 שעות. מקור: frankfurter (בנק מרכזי אירופי), גיבוי: open.er-api */
+function fxInfo_(cur) {
+  if (!cur || cur === 'ILS') return { rate: 1, date: '' };
   if (FX_CACHE_[cur]) return FX_CACHE_[cur];
+  var cache = CacheService.getScriptCache();
   try {
-    var cache = CacheService.getScriptCache();
-    var hit = cache.get('fx_' + cur);
-    if (hit) return FX_CACHE_[cur] = parseFloat(hit);
-    var res = UrlFetchApp.fetch('https://api.frankfurter.app/latest?from=' + encodeURIComponent(cur) + '&to=ILS', { muteHttpExceptions: true });
-    var data = JSON.parse(res.getContentText());
-    var rate = data && data.rates && data.rates.ILS;
-    if (rate) { cache.put('fx_' + cur, String(rate), 21600); return FX_CACHE_[cur] = rate; }
+    var hit = cache.get('fx2_' + cur);
+    if (hit) { var h = hit.split('|'); return FX_CACHE_[cur] = { rate: parseFloat(h[0]), date: h[1] || '' }; }
   } catch (e) { }
-  return null;
+  var out = null;
+  try {
+    var res = UrlFetchApp.fetch('https://api.frankfurter.dev/v1/latest?base=' + encodeURIComponent(cur) + '&symbols=ILS', { muteHttpExceptions: true });
+    var data = JSON.parse(res.getContentText());
+    if (data && data.rates && data.rates.ILS) out = { rate: Number(data.rates.ILS), date: data.date || '' };
+  } catch (e) { }
+  if (!out) {
+    try {
+      var res2 = UrlFetchApp.fetch('https://open.er-api.com/v6/latest/' + encodeURIComponent(cur), { muteHttpExceptions: true });
+      var d2 = JSON.parse(res2.getContentText());
+      if (d2 && d2.rates && d2.rates.ILS) out = { rate: Number(d2.rates.ILS), date: Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd') };
+    } catch (e) { }
+  }
+  if (out) { try { cache.put('fx2_' + cur, out.rate + '|' + out.date, 21600); } catch (e) { } FX_CACHE_[cur] = out; }
+  return out;
+}
+function fxRate_(cur) { var x = fxInfo_(cur); return x ? x.rate : null; }
+
+/**
+ * מעדכן סכומי שקל לפי שער עדכני, רק למה שעוד לא שולם:
+ * מלון במטבע זר שלא שולם ולא ננעל → מחיר + תוספת; מלון ששולם → רק התוספת (משולמת במלון); הוצאה שלא שולמה.
+ * מה ששולם נשאר בשער של יום התשלום.
+ */
+function refreshRates_() {
+  var changed = 0;
+  var sh = bookingsSheet_();
+  readAll_(sh, COLS).forEach(function (r) {
+    if (!r.currency || r.currency === 'ILS' || r.ilsFixed) return;
+    var fx = fxInfo_(r.currency); if (!fx) return;
+    var before = [r.priceIls, r.extraIls, r.rate, r.rateDate].join('|');
+    if (!r.paid && r.price !== '' && r.price !== null) { r.priceIls = Math.round(Number(r.price) * fx.rate); r.rate = fx.rate; r.rateDate = fx.date; }
+    if (r.extraPrice !== '' && r.extraPrice !== null) r.extraIls = Math.round(Number(r.extraPrice) * fx.rate);
+    if ([r.priceIls, r.extraIls, r.rate, r.rateDate].join('|') !== before) { var row = r._row; delete r._row; writeBooking_(row, r); changed++; }
+  });
+  var esh = expensesSheet_();
+  readAll_(esh, EXP_COLS).forEach(function (e) {
+    if (!e.currency || e.currency === 'ILS' || e.paid !== false || e.price === '' || e.price === null) return;
+    var fx = fxInfo_(e.currency); if (!fx) return;
+    var before = [e.priceIls, e.rate, e.rateDate].join('|');
+    e.priceIls = Math.round(Number(e.price) * fx.rate); e.rate = fx.rate; e.rateDate = fx.date;
+    if ([e.priceIls, e.rate, e.rateDate].join('|') !== before) { var row = e._row; delete e._row; var vals = toRow_(e, EXP_COLS, esh); esh.getRange(row, 1, 1, vals.length).setValues([vals]); changed++; }
+  });
+  props_().setProperty('FX_LAST', now_()); props_().setProperty('FX_LAST_MS', String(Date.now()));
+  if (changed) { try { syncSummary_(); } catch (e) { } }
+  return changed;
+}
+/** רענון אוטומטי אם עברו יותר מ-12 שעות (נקרא בפתיחת האפליקציה) */
+function maybeRefreshRates_() {
+  try {
+    var lastMs = Number(props_().getProperty('FX_LAST_MS') || 0);
+    if (lastMs && (Date.now() - lastMs) < 12 * 3600 * 1000) return;
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(3000)) return;
+    try { refreshRates_(); } finally { lock.releaseLock(); }
+  } catch (e) { }
+}
+function fxSummary_(list, exps) {
+  var curs = {}; list.concat(exps).forEach(function (r) { if (r.currency && r.currency !== 'ILS') curs[r.currency] = 1; });
+  var rates = {}; Object.keys(curs).forEach(function (c) { var x = fxInfo_(c); if (x) rates[c] = x; });
+  return { rates: rates, refreshedAt: props_().getProperty('FX_LAST') || '' };
 }
 
 function bookingsSheet_() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_BOOKINGS); }
@@ -537,6 +608,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   if (p.action === 'ping') return json_({ ok: true, ts: now_() });
   if (!checkToken_(p.token)) return json_({ ok: false, error: 'טוקן שגוי' });
+  if ((p.action || 'list') === 'list') maybeRefreshRates_();
   return handle_(p.action || 'list', p, 'web');
 }
 
@@ -567,7 +639,7 @@ function handleInner_(action, p, by) {
       list.forEach(function (r) { r.groupInfo = groups[r.id] || null; r.altInfo = alts[r.id] || null; });
       var sum = summary_(list);
       var exps = listExpenses_().map(function (r) { delete r._row; return r; });
-      return json_({ ok: true, bookings: list, summary: sum, expenses: exps, budget: budget_(sum, exps), platforms: PLATFORMS, reminders: remindersStatus_() });
+      return json_({ ok: true, bookings: list, summary: sum, expenses: exps, budget: budget_(sum, exps), platforms: PLATFORMS, reminders: remindersStatus_(), fx: fxSummary_(list, exps) });
     }
     case 'history': {
       var h = readAll_(historySheet_(), HISTORY_COLS).map(function (r) { delete r._row; return r; }).reverse();
@@ -673,6 +745,7 @@ function handleInner_(action, p, by) {
       logHistory_('נמחק לצמיתות', by, p.note || '', src);
       return json_({ ok: true, purged: src });
     }
+    case 'refreshRates': { var nfx = refreshRates_(); return json_({ ok: true, changed: nfx }); }
     case 'sync': { syncGroups_(); syncSummary_(); return json_({ ok: true }); }
     case 'setTarget': { setSetting_('TARGET_NIGHTS', Number(p.nights) || 21, 'יעד לילות לטיול'); return json_({ ok: true }); }
     case 'setBudget': { setSetting_('TARGET_BUDGET', Number(p.ils) || 0, 'תקציב כולל בשקלים (0 = לא הוגדר)'); return json_({ ok: true }); }
@@ -709,6 +782,7 @@ function handleInner_(action, p, by) {
 
 // ---------- תזכורות טלגרם (אופציונלי) ----------
 function dailyReminders() {
+  try { refreshRates_(); } catch (e) { } // עדכון יומי של שערי ההמרה
   var token = props_().getProperty('TELEGRAM_BOT_TOKEN'), chat = props_().getProperty('TELEGRAM_CHAT_ID');
   if (!token || !chat) return;
   var today = new Date(Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd') + 'T00:00:00Z');
